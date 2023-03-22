@@ -188,7 +188,6 @@ func chat() {
 			continue
 		}
 		for _, choice := range ans.Choices {
-			term.Write([]byte("\nChatGPT:\n"))
 			term.Write([]byte(strings.TrimSpace(choice.Message.Content)))
 			term.Write([]byte("\n"))
 			messages = append(messages, choice.Message)
@@ -197,6 +196,10 @@ func chat() {
 }
 
 func main() {
-	cortana.AddRootCommand(chat)
+	unmarshaler := cortana.UnmarshalFunc(json.Unmarshal)
+	cortana.AddConfig("guru.json", unmarshaler)
+	cortana.Use(cortana.ConfFlag("--conf", "-c", unmarshaler))
+
+	cortana.AddCommand("chat", chat, "chat with ChatGPT")
 	cortana.Launch()
 }
