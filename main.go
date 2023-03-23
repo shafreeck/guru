@@ -13,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/c-bata/go-prompt"
+	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/shafreeck/cortana"
 	"github.com/tidwall/pretty"
 	"golang.org/x/net/proxy"
@@ -30,16 +33,6 @@ func printJSON(v interface{}) {
 	} else {
 		fmt.Println(string(data))
 	}
-}
-func marshalJSON(v interface{}) ([]byte, error) {
-	data, err := json.Marshal(v)
-	if err != nil {
-		return nil, err
-	}
-	if term.IsTerminal(int(os.Stdout.Fd())) {
-		return pretty.Color(pretty.Pretty(data), nil), nil
-	}
-	return data, nil
 }
 
 type ChatRole string
@@ -121,17 +114,24 @@ func ask(cli *http.Client, apiKey string, messages []*Message) (*Answer, error) 
 
 func chat() {
 	opts := struct {
-		Socks5 string `cortana:"--socks5"`
-		APIKey string `cortana:"--openai-api-key, -, -"`
-		Text   string
+		Socks5      string        `cortana:"--socks5, -, , set the socks5 proxy"`
+		APIKey      string        `cortana:"--openai-api-key, -, -, set your openai api key"`
+		Timeout     time.Duration `cortana:"--timeout, -, 30s, the timeout duration for a request"`
+		Interactive bool          `cortana:"--interactive, -i, false, chat in interactive mode, it will be in this mode default if no text supplied"`
+		System      string        `cortana:"--system, -, , the optional system prompt for initializing the chatgpt"`
+		Text        string
 	}{}
 	cortana.Parse(&opts)
-	dailer, err := proxy.SOCKS5("tcp", opts.Socks5, nil, proxy.Direct)
-	if err != nil {
-		log.Fatal(err)
-	}
-	cli := &http.Client{Timeout: 30 * time.Second}
+	cli := &http.Client{Timeout: opts.Timeout}
 	if opts.Socks5 != "" {
+		blue := lipgloss.NewStyle().Foreground(lipgloss.Color("#2da9d2"))
+
+		fmt.Println(blue.Render(fmt.Sprintf("using socks5 proxy: %s", opts.Socks5)))
+		dailer, err := proxy.SOCKS5("tcp", opts.Socks5, nil, proxy.Direct)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		cli.Transport = &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -140,7 +140,7 @@ func chat() {
 		}
 	}
 
-	if opts.Text != "" {
+	if opts.Text != "" && !opts.Interactive {
 		ans, err := ask(cli, opts.APIKey, []*Message{{Role: User, Content: opts.Text}})
 		if err != nil {
 			log.Fatal(err)
@@ -149,50 +149,76 @@ func chat() {
 		return
 	}
 
-	oldState, err := term.MakeRaw(0)
-	if err != nil {
-		panic(err)
-	}
-	defer term.Restore(0, oldState)
-
-	rw := struct {
-		io.Reader
-		io.Writer
-	}{Reader: os.Stdin, Writer: os.Stdout}
-	term := term.NewTerminal(rw, "ChatGPT > ")
-
-	writeErr := func(err error) {
-		term.Write([]byte(err.Error()))
-		term.Write([]byte("\n"))
-	}
+	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#e61919"))
 
 	var messages []*Message
-	for {
-		text, err := term.ReadLine()
-		if err != nil {
-			writeErr(err)
-			break
-		}
-		if text == "" {
-			continue
-		}
-		messages = append(messages, &Message{Role: User, Content: text})
+	if opts.System != "" {
+		messages = append(messages, &Message{Role: System, Content: opts.System})
+	}
+	if opts.Text != "" {
+		messages = append(messages, &Message{Role: User, Content: opts.Text})
+	}
 
+	// use the markdown render to render the response
+	mdr, err := glamour.NewTermRenderer(
+		// detect background color and pick either the default dark or light theme
+		glamour.WithAutoStyle(),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ask := func(messages []*Message) error {
 		ans, err := ask(cli, opts.APIKey, messages)
 		if err != nil {
-			writeErr(err)
-			continue
+			return err
 		}
 		if ans.Error.Message != "" {
-			term.Write([]byte(ans.Error.Message))
-			continue
+			return fmt.Errorf(ans.Error.Message)
 		}
 		for _, choice := range ans.Choices {
-			term.Write([]byte(strings.TrimSpace(choice.Message.Content)))
-			term.Write([]byte("\n"))
+			fmt.Println()
+			content := strings.TrimSpace(choice.Message.Content)
+			out, err := mdr.Render(content)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			fmt.Println(out)
 			messages = append(messages, choice.Message)
 		}
+		return nil
 	}
+	if len(messages) > 0 {
+		ask(messages)
+	}
+
+	talk := func(text string) {
+		var err error
+		if text == "" {
+			return
+		}
+
+		// avoid adding a dupicated input text when an error occurred for the
+		// last text
+		if l := len(messages); l > 0 {
+			last := messages[l-1].Content
+			if err == nil || last != text {
+				messages = append(messages, &Message{Role: User, Content: text})
+			}
+		} else {
+			messages = append(messages, &Message{Role: User, Content: text})
+		}
+
+		err = ask(messages)
+		if err != nil {
+			fmt.Println(red.Render(err.Error()))
+		}
+	}
+
+	prompt.New(talk, func(d prompt.Document) []prompt.Suggest { return nil },
+		prompt.OptionPrefix("ChatGPT > "),
+		prompt.OptionPrefixTextColor(prompt.Green),
+	).Run()
 }
 
 func main() {
