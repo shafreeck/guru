@@ -122,6 +122,7 @@ func chat() {
 		Text        string
 	}{}
 	cortana.Parse(&opts)
+
 	cli := &http.Client{Timeout: opts.Timeout}
 	if opts.Socks5 != "" {
 		blue := lipgloss.NewStyle().Foreground(lipgloss.Color("#2da9d2"))
