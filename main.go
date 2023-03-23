@@ -167,7 +167,7 @@ func chat() {
 		messages = append(messages, &Message{Role: User, Content: string(content)})
 	}
 
-	// use the markdown render to render the response
+	// use the markdown renderer to render the response
 	mdr, err := glamour.NewTermRenderer(
 		// detect background color and pick either the default dark or light theme
 		glamour.WithAutoStyle(),
