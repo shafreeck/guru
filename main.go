@@ -78,7 +78,7 @@ type ChatGPT struct {
 	cli  *http.Client
 }
 
-func (c *ChatGPT) ask(apiKey string, messages []*Message) (*Answer, error) {
+func (c *ChatGPT) ask(ctx context.Context, apiKey string, messages []*Message) (*Answer, error) {
 	url := "https://api.openai.com/v1/chat/completions"
 
 	question := Question{
@@ -97,7 +97,7 @@ func (c *ChatGPT) ask(apiKey string, messages []*Message) (*Answer, error) {
 	req.Header.Add("Authorization", "Bearer "+apiKey)
 	req.Header.Add("Content-Type", "application/json")
 
-	resp, err := c.cli.Do(req)
+	resp, err := c.cli.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -121,11 +121,13 @@ func chat() {
 		Socks5      string        `cortana:"--socks5, -, , set the socks5 proxy"`
 		Timeout     time.Duration `cortana:"--timeout, -, 180s, the timeout duration for a request"`
 		Interactive bool          `cortana:"--interactive, -i, false, chat in interactive mode, it will be in this mode default if no text supplied"`
-		System      string        `cortana:"--system, -, 用Markdown渲染你的回应, the optional system prompt for initializing the chatgpt"`
+		System      string        `cortana:"--system, -, 请总是用Markdown格式来渲染你的回应, the optional system prompt for initializing the chatgpt"`
 		Filename    string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)"`
 		Text        string
 	}{}
 	cortana.Parse(&opts)
+
+	ctx := context.Background()
 
 	cli := &http.Client{Timeout: opts.Timeout}
 	if opts.Socks5 != "" {
@@ -176,7 +178,7 @@ func chat() {
 		log.Fatal(err)
 	}
 	ask := func(messages []*Message) error {
-		ans, err := c.ask(opts.APIKey, messages)
+		ans, err := c.ask(ctx, opts.APIKey, messages)
 		if err != nil {
 			return err
 		}
@@ -198,9 +200,14 @@ func chat() {
 			ans.Usage.PromptTokens, ans.Usage.CompletionTokens, ans.Usage.PromptTokens)))
 		return nil
 	}
+
+	if opts.Text == "" && opts.Filename == "" {
+		opts.Interactive = true
+	}
+
 	if len(messages) > 0 {
 		ask(messages)
-		if !opts.Interactive && opts.Text != "" {
+		if !opts.Interactive {
 			return
 		}
 	}
