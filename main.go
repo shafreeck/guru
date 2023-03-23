@@ -17,23 +17,8 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/shafreeck/cortana"
-	"github.com/tidwall/pretty"
 	"golang.org/x/net/proxy"
-	"golang.org/x/term"
 )
-
-func printJSON(v interface{}) {
-	data, err := json.Marshal(v)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if term.IsTerminal(int(os.Stdout.Fd())) {
-		fmt.Println(string(
-			pretty.Color(pretty.Pretty(data), nil)))
-	} else {
-		fmt.Println(string(data))
-	}
-}
 
 type ChatRole string
 
@@ -49,7 +34,7 @@ type Message struct {
 }
 
 type Question struct {
-	Model    string     `json:"model"`
+	ChatGPTOptions
 	Messages []*Message `json:"messages"`
 }
 
@@ -76,12 +61,29 @@ type Answer struct {
 	}
 }
 
-func ask(cli *http.Client, apiKey string, messages []*Message) (*Answer, error) {
+type ChatGPTOptions struct {
+	Model            string  `json:"model" cortana:"--chatgpt.model, -, gpt-3.5-turbo, ID of the model to use. See the model endpoint compatibility table for details on which models work with the Chat API."`
+	Temperature      float32 `json:"temperature" cortana:"--chatgpt.temperature, -, 1, What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic."`
+	Topp             float32 `json:"top_p" cortana:"--chatgpt.top_p, -, 1, An alternative to sampling with temperature, called nucleus sampling, where the model considers the results of the tokens with top_p probability mass. So 0.1 means only the tokens comprising the top 10% probability mass are considered."`
+	N                int     `json:"n" cortana:"--chatgpt.n, -, 1, How many chat completion choices to generate for each input message."`
+	Stop             string  `json:"stop,omitempty" cortana:"--chatgpt.stop, -, , Up to 4 sequences where the API will stop generating further tokens."`
+	MaxTokens        int     `json:"max_tokens,omitempty" cortana:"--chatgpt.max_tokens, -, 0, The maximum number of tokens to generate in the chat completion."`
+	PresencePenalty  float32 `json:"presence_penalty,omitempty" cortana:"--chatgpt.presence_penalty, -, 0, Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics."`
+	FrequencyPenalty float32 `json:"frequency_penalty,omitempty" cortana:"--chatgpt.frequency_penalty, -, 0, Number between -2.0 and 2.0. Positive values penalize new tokens based on their existing frequency in the text so far, decreasing the model's likelihood to repeat the same line verbatim."`
+	User             string  `json:"user,omitempty" cortana:"--chatgpt.user, -, , A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse."`
+}
+
+type ChatGPT struct {
+	opts ChatGPTOptions
+	cli  *http.Client
+}
+
+func (c *ChatGPT) ask(apiKey string, messages []*Message) (*Answer, error) {
 	url := "https://api.openai.com/v1/chat/completions"
 
 	question := Question{
-		Model:    "gpt-3.5-turbo",
-		Messages: messages,
+		ChatGPTOptions: c.opts,
+		Messages:       messages,
 	}
 	data, err := json.Marshal(question)
 	if err != nil {
@@ -95,7 +97,7 @@ func ask(cli *http.Client, apiKey string, messages []*Message) (*Answer, error) 
 	req.Header.Add("Authorization", "Bearer "+apiKey)
 	req.Header.Add("Content-Type", "application/json")
 
-	resp, err := cli.Do(req)
+	resp, err := c.cli.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -114,11 +116,13 @@ func ask(cli *http.Client, apiKey string, messages []*Message) (*Answer, error) 
 
 func chat() {
 	opts := struct {
-		Socks5      string        `cortana:"--socks5, -, , set the socks5 proxy"`
+		ChatGPTOptions
 		APIKey      string        `cortana:"--openai-api-key, -, -, set your openai api key"`
-		Timeout     time.Duration `cortana:"--timeout, -, 30s, the timeout duration for a request"`
+		Socks5      string        `cortana:"--socks5, -, , set the socks5 proxy"`
+		Timeout     time.Duration `cortana:"--timeout, -, 180s, the timeout duration for a request"`
 		Interactive bool          `cortana:"--interactive, -i, false, chat in interactive mode, it will be in this mode default if no text supplied"`
-		System      string        `cortana:"--system, -, , the optional system prompt for initializing the chatgpt"`
+		System      string        `cortana:"--system, -, 用Markdown渲染你的回应, the optional system prompt for initializing the chatgpt"`
+		Filename    string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)"`
 		Text        string
 	}{}
 	cortana.Parse(&opts)
@@ -140,17 +144,13 @@ func chat() {
 			},
 		}
 	}
-
-	if opts.Text != "" && !opts.Interactive {
-		ans, err := ask(cli, opts.APIKey, []*Message{{Role: User, Content: opts.Text}})
-		if err != nil {
-			log.Fatal(err)
-		}
-		printJSON(ans)
-		return
+	c := &ChatGPT{
+		cli:  cli,
+		opts: opts.ChatGPTOptions,
 	}
 
 	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#e61919"))
+	green := lipgloss.NewStyle().Foreground(lipgloss.Color("#28bd28"))
 
 	var messages []*Message
 	if opts.System != "" {
@@ -158,6 +158,13 @@ func chat() {
 	}
 	if opts.Text != "" {
 		messages = append(messages, &Message{Role: User, Content: opts.Text})
+	}
+	if opts.Filename != "" {
+		content, err := os.ReadFile(opts.Filename)
+		if err != nil {
+			log.Fatal("read file failed", err)
+		}
+		messages = append(messages, &Message{Role: User, Content: string(content)})
 	}
 
 	// use the markdown render to render the response
@@ -169,7 +176,7 @@ func chat() {
 		log.Fatal(err)
 	}
 	ask := func(messages []*Message) error {
-		ans, err := ask(cli, opts.APIKey, messages)
+		ans, err := c.ask(opts.APIKey, messages)
 		if err != nil {
 			return err
 		}
@@ -187,10 +194,15 @@ func chat() {
 			fmt.Println(out)
 			messages = append(messages, choice.Message)
 		}
+		fmt.Println(green.Render(fmt.Sprintf("Usage : prompt(%d) complete(%d) total(%d)",
+			ans.Usage.PromptTokens, ans.Usage.CompletionTokens, ans.Usage.PromptTokens)))
 		return nil
 	}
 	if len(messages) > 0 {
 		ask(messages)
+		if !opts.Interactive && opts.Text != "" {
+			return
+		}
 	}
 
 	talk := func(text string) {
@@ -228,5 +240,8 @@ func main() {
 	cortana.Use(cortana.ConfFlag("--conf", "-c", unmarshaler))
 
 	cortana.AddCommand("chat", chat, "chat with ChatGPT")
+	cortana.Alias("review", `chat --system 帮我Review以下代码,并给出优化意见,用Markdown渲染你的回应`)
+	cortana.Alias("translate", `chat --system 帮我翻译以下文本到中文,用Markdown渲染你的回应`)
+	cortana.Alias("unittest", `chat --system 为我指定的函数编写一个单元测试,用Markdown渲染你的回应`)
 	cortana.Launch()
 }
