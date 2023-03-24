@@ -18,6 +18,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/shafreeck/cortana"
 	"golang.org/x/net/proxy"
+	"golang.org/x/term"
 )
 
 type ChatRole string
@@ -212,12 +213,17 @@ func chat() {
 		for _, choice := range ans.Choices {
 			fmt.Println()
 			content := strings.TrimSpace(choice.Message.Content)
-			out, err := mdr.Render(content)
-			if err != nil {
-				fmt.Println(err)
-				continue
+			if term.IsTerminal(int(os.Stdout.Fd())) {
+				out, err := mdr.Render(content)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+				verbose(blue.Render("render with markdown"))
+				fmt.Println(out)
+			} else {
+				fmt.Println(string(content))
 			}
-			fmt.Println(out)
 			messages = append(messages, choice.Message)
 		}
 		fmt.Println(green.Render(fmt.Sprintf("Usage : prompt(%d) complete(%d) total(%d)",
