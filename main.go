@@ -122,7 +122,7 @@ func chat() {
 		Socks5      string        `cortana:"--socks5, -, , set the socks5 proxy"`
 		Timeout     time.Duration `cortana:"--timeout, -, 180s, the timeout duration for a request"`
 		Interactive bool          `cortana:"--interactive, -i, false, chat in interactive mode, it will be in this mode default if no text supplied"`
-		System      string        `cortana:"--system, -, 请总是用Markdown格式来渲染你的回应, the optional system prompt for initializing the chatgpt"`
+		System      string        `cortana:"--system, -,always output with markdown, the optional system prompt for initializing the chatgpt"`
 		Filename    string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)"`
 		Verbose     bool          `cortana:"--verbose, -v, false, print verbose messages"`
 		Text        string
@@ -170,7 +170,13 @@ func chat() {
 	if opts.Filename != "" {
 		var content []byte
 		var err error
-		if strings.HasPrefix(opts.Filename, "http") {
+		if opts.Filename == "--" {
+			verbose(blue.Render("read from stdin"))
+			content, err = io.ReadAll(os.Stdin)
+			if err != nil {
+				log.Fatal("read stdin failed")
+			}
+		} else if strings.HasPrefix(opts.Filename, "http") {
 			verbose(blue.Render("fetch url: " + opts.Filename))
 			resp, err := http.Get(opts.Filename)
 			if err != nil {

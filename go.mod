@@ -3,8 +3,10 @@ module github.com/shafreeck/guru
 go 1.19
 
 require (
-	github.com/shafreeck/cortana v0.0.0-20220426120812-6e06d65fed3b
-	github.com/tidwall/pretty v1.2.1
+	github.com/c-bata/go-prompt v0.2.6
+	github.com/charmbracelet/glamour v0.6.0
+	github.com/charmbracelet/lipgloss v0.7.1
+	github.com/shafreeck/cortana v0.0.0-20230324073127-b7b1204e84e1
 	golang.org/x/net v0.8.0
 	golang.org/x/term v0.6.0
 )
@@ -13,9 +15,6 @@ require (
 	github.com/alecthomas/chroma v0.10.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
-	github.com/c-bata/go-prompt v0.2.6 // indirect
-	github.com/charmbracelet/glamour v0.6.0 // indirect
-	github.com/charmbracelet/lipgloss v0.7.1 // indirect
 	github.com/dlclark/regexp2 v1.4.0 // indirect
 	github.com/google/btree v1.0.0 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
