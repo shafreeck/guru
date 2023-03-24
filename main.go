@@ -232,8 +232,8 @@ func chat() {
 			}
 			messages = append(messages, choice.Message)
 		}
-		fmt.Println(green.Render(fmt.Sprintf("Usage : prompt(%d) complete(%d) total(%d)",
-			ans.Usage.PromptTokens, ans.Usage.CompletionTokens, ans.Usage.PromptTokens)))
+		fmt.Println(green.Render(fmt.Sprintf("Cost : prompt(%d) completion(%d) total(%d)",
+			ans.Usage.PromptTokens, ans.Usage.CompletionTokens, ans.Usage.TotalTokens)))
 		return nil
 	}
 
