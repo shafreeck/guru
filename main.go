@@ -123,17 +123,25 @@ func chat() {
 		Interactive bool          `cortana:"--interactive, -i, false, chat in interactive mode, it will be in this mode default if no text supplied"`
 		System      string        `cortana:"--system, -, 请总是用Markdown格式来渲染你的回应, the optional system prompt for initializing the chatgpt"`
 		Filename    string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)"`
+		Verbose     bool          `cortana:"--verbose, -v, false, print verbose messages"`
 		Text        string
 	}{}
 	cortana.Parse(&opts)
 
-	ctx := context.Background()
+	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#e61919"))
+	blue := lipgloss.NewStyle().Foreground(lipgloss.Color("#2da9d2"))
+	green := lipgloss.NewStyle().Foreground(lipgloss.Color("#28bd28"))
 
+	verbose := func(s string) {
+		if opts.Verbose {
+			fmt.Println(s)
+		}
+	}
+
+	ctx := context.Background()
 	cli := &http.Client{Timeout: opts.Timeout}
 	if opts.Socks5 != "" {
-		blue := lipgloss.NewStyle().Foreground(lipgloss.Color("#2da9d2"))
-
-		fmt.Println(blue.Render(fmt.Sprintf("using socks5 proxy: %s", opts.Socks5)))
+		verbose(blue.Render(fmt.Sprintf("using socks5 proxy: %s", opts.Socks5)))
 		dailer, err := proxy.SOCKS5("tcp", opts.Socks5, nil, proxy.Direct)
 		if err != nil {
 			log.Fatal(err)
@@ -151,9 +159,6 @@ func chat() {
 		opts: opts.ChatGPTOptions,
 	}
 
-	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#e61919"))
-	green := lipgloss.NewStyle().Foreground(lipgloss.Color("#28bd28"))
-
 	var messages []*Message
 	if opts.System != "" {
 		messages = append(messages, &Message{Role: System, Content: opts.System})
@@ -162,9 +167,26 @@ func chat() {
 		messages = append(messages, &Message{Role: User, Content: opts.Text})
 	}
 	if opts.Filename != "" {
-		content, err := os.ReadFile(opts.Filename)
-		if err != nil {
-			log.Fatal("read file failed", err)
+		var content []byte
+		var err error
+		if strings.HasPrefix(opts.Filename, "http") {
+			verbose(blue.Render("fetch url: " + opts.Filename))
+			resp, err := http.Get(opts.Filename)
+			if err != nil {
+				log.Fatal("http get failed", err)
+			}
+			verbose(blue.Render("HTTP Code: " + resp.Status))
+			content, err = io.ReadAll(resp.Body)
+			if err != nil {
+				log.Fatal("read http body failed", err)
+			}
+			resp.Body.Close()
+		} else {
+			verbose(blue.Render("read local file: " + opts.Filename))
+			content, err = os.ReadFile(opts.Filename)
+			if err != nil {
+				log.Fatal("read file failed", err)
+			}
 		}
 		messages = append(messages, &Message{Role: User, Content: string(content)})
 	}
@@ -178,10 +200,12 @@ func chat() {
 		log.Fatal(err)
 	}
 	ask := func(messages []*Message) error {
+		verbose(blue.Render(fmt.Sprintf("send messages: %d", len(messages))))
 		ans, err := c.ask(ctx, opts.APIKey, messages)
 		if err != nil {
 			return err
 		}
+		verbose(blue.Render(fmt.Sprintf("%#v", ans)))
 		if ans.Error.Message != "" {
 			return fmt.Errorf(ans.Error.Message)
 		}
@@ -206,7 +230,9 @@ func chat() {
 	}
 
 	if len(messages) > 0 {
-		ask(messages)
+		if err := ask(messages); err != nil {
+			fmt.Println(red.Render(err.Error()))
+		}
 		if !opts.Interactive {
 			return
 		}
