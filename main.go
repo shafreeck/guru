@@ -210,7 +210,14 @@ func chat() {
 	}
 	ask := func(messages []*Message) error {
 		verbose(blue.Render(fmt.Sprintf("send messages: %d", len(messages))))
-		ans, err := c.ask(ctx, opts.APIKey, messages)
+		p := spin(ctx, "waiting response...")
+		var ans *Answer
+		go func() {
+			ans, err = c.ask(ctx, opts.APIKey, messages)
+			p.Quit()
+		}()
+		p.Run()
+
 		if err != nil {
 			return err
 		}
