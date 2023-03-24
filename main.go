@@ -74,12 +74,14 @@ type ChatGPTOptions struct {
 	User             string  `json:"user,omitempty" cortana:"--chatgpt.user, -, , A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse."`
 }
 
-type ChatGPT struct {
+type ChatGPTClient struct {
 	opts ChatGPTOptions
 	cli  *http.Client
+
+	messages []*Message
 }
 
-func (c *ChatGPT) ask(ctx context.Context, apiKey string, messages []*Message) (*Answer, error) {
+func (c *ChatGPTClient) ask(ctx context.Context, apiKey string, messages []*Message) (*Answer, error) {
 	url := "https://api.openai.com/v1/chat/completions"
 
 	question := Question{
@@ -155,7 +157,7 @@ func chat() {
 			},
 		}
 	}
-	c := &ChatGPT{
+	c := &ChatGPTClient{
 		cli:  cli,
 		opts: opts.ChatGPTOptions,
 	}
