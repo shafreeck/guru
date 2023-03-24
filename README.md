@@ -74,7 +74,7 @@ guru chat "What is the answer to the universe?"
 ```
 
 
-获取ChatGPT关于用户输入文本的回答，并在Windows平台上使用ConEmu渲染Markdown：
+获取ChatGPT关于用户输入文本的回答，并渲染Markdown：
 
 ```
 guru chat "I need to improve my report based on the feedback I got. Can you give me some suggestions?" | my_markdown_render
