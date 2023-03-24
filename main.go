@@ -255,6 +255,9 @@ func chat() {
 		if text == "" {
 			return
 		}
+		if text == "exit" || text == "quit" {
+			os.Exit(0)
+		}
 
 		// avoid adding a dupicated input text when an error occurred for the
 		// last text
