@@ -392,7 +392,7 @@ func chat() {
 		}
 	}
 
-	prompt.New(talk, completer,
+	prompt.New(talk, cmdCompleter,
 		prompt.OptionPrefix("ChatGPT > "),
 		prompt.OptionPrefixTextColor(prompt.Green),
 	).Run()
