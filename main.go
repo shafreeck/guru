@@ -19,6 +19,7 @@ import (
 	"github.com/shafreeck/cortana"
 	"github.com/shafreeck/guru/tui"
 	"golang.org/x/net/proxy"
+	"golang.org/x/term"
 )
 
 type ChatRole string
@@ -290,11 +291,16 @@ func chat() {
 			}))
 			return nil
 		}
-		ans, err := tui.Display[tui.Model[*Answer], *Answer](ctx,
-			tui.NewSpinnerModel("waiting response...", func() (*Answer, error) {
-				return c.ask(ctx, opts.APIKey, messages)
-			}))
-
+		var ans *Answer
+		var err error
+		if term.IsTerminal(int(os.Stdout.Fd())) {
+			ans, err = tui.Display[tui.Model[*Answer], *Answer](ctx,
+				tui.NewSpinnerModel("waiting response...", func() (*Answer, error) {
+					return c.ask(ctx, opts.APIKey, messages)
+				}))
+		} else {
+			ans, err = c.ask(ctx, opts.APIKey, messages)
+		}
 		if err != nil {
 			return err
 		}
