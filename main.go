@@ -321,8 +321,10 @@ func chat() {
 		}
 		tui.Display[tui.Model[string], string](ctx, tui.NewMarkdownModel(out.String()))
 
-		fmt.Println(green.Render(fmt.Sprintf("Cost : prompt(%d) completion(%d) total(%d)",
-			ans.Usage.PromptTokens, ans.Usage.CompletionTokens, ans.Usage.TotalTokens)))
+		if opts.Interactive {
+			fmt.Println(green.Render(fmt.Sprintf("Cost : prompt(%d) completion(%d) total(%d)",
+				ans.Usage.PromptTokens, ans.Usage.CompletionTokens, ans.Usage.TotalTokens)))
+		}
 		return nil
 	}
 
