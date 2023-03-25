@@ -11,6 +11,9 @@ type (
 	doneMsg[V any] struct {
 		v V
 	}
+	eventMsg[E any] struct {
+		e E
+	}
 )
 
 type Model[T any] interface {
