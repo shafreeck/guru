@@ -6,7 +6,7 @@ require (
 	github.com/c-bata/go-prompt v0.2.6
 	github.com/charmbracelet/glamour v0.6.0
 	github.com/charmbracelet/lipgloss v0.7.1
-	github.com/shafreeck/cortana v0.0.0-20230324073127-b7b1204e84e1
+	github.com/shafreeck/cortana v0.0.0-20230325140832-fce779765bd2
 	golang.org/x/net v0.8.0
 	golang.org/x/term v0.6.0
 )

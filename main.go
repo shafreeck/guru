@@ -382,6 +382,7 @@ func chat() {
 func main() {
 	unmarshaler := cortana.UnmarshalFunc(json.Unmarshal)
 	cortana.AddConfig("guru.json", unmarshaler)
+	cortana.AddConfig("~/.config/guru/guru.json", unmarshaler)
 	cortana.Use(cortana.ConfFlag("--conf", "-c", unmarshaler))
 
 	cortana.AddCommand("chat", chat, "chat with ChatGPT")
