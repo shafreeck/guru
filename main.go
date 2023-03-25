@@ -14,11 +14,10 @@ import (
 	"time"
 
 	"github.com/c-bata/go-prompt"
-	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/shafreeck/cortana"
+	"github.com/shafreeck/guru/tui"
 	"golang.org/x/net/proxy"
-	"golang.org/x/term"
 )
 
 type ChatRole string
@@ -200,47 +199,39 @@ func chat() {
 		messages = append(messages, &Message{Role: User, Content: string(content)})
 	}
 
-	// use the markdown renderer to render the response
-	mdr, err := glamour.NewTermRenderer(
-		// detect background color and pick either the default dark or light theme
-		glamour.WithAutoStyle(),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
 	ask := func(messages []*Message) error {
 		verbose(blue.Render(fmt.Sprintf("send messages: %d", len(messages))))
-		p := spin(ctx, "waiting response...")
-		var ans *Answer
-		go func() {
-			ans, err = c.ask(ctx, opts.APIKey, messages)
-			p.Quit()
-		}()
-		p.Run()
+		ans, err := tui.Display[tui.Model[*Answer], *Answer](ctx,
+			tui.NewSpinnerModel("waiting response...", func() (*Answer, error) {
+				return c.ask(ctx, opts.APIKey, messages)
+			}))
 
 		if err != nil {
 			return err
 		}
+
+		// maybe ctrl+c interrupted
+		if ans == nil {
+			return nil
+		}
+
 		verbose(blue.Render(fmt.Sprintf("%#v", ans)))
 		if ans.Error.Message != "" {
 			return fmt.Errorf(ans.Error.Message)
 		}
+
+		verbose(blue.Render("render with markdown"))
+		out := bytes.NewBuffer(nil)
 		for _, choice := range ans.Choices {
-			fmt.Println()
 			content := strings.TrimSpace(choice.Message.Content)
-			if term.IsTerminal(int(os.Stdout.Fd())) {
-				out, err := mdr.Render(content)
-				if err != nil {
-					fmt.Println(err)
-					continue
-				}
-				verbose(blue.Render("render with markdown"))
-				fmt.Println(out)
-			} else {
-				fmt.Println(string(content))
-			}
+			out.WriteByte('\n')
+			out.WriteString(content)
+			out.WriteByte('\n')
+
 			messages = append(messages, choice.Message)
 		}
+		tui.Display[tui.Model[string], string](ctx, tui.NewMarkdownModel(out.String()))
+
 		fmt.Println(green.Render(fmt.Sprintf("Cost : prompt(%d) completion(%d) total(%d)",
 			ans.Usage.PromptTokens, ans.Usage.CompletionTokens, ans.Usage.TotalTokens)))
 		return nil
