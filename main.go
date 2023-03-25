@@ -193,6 +193,12 @@ func (c *ChatGPTClient) stream(ctx context.Context, apiKey string, messages []*M
 	return ch, nil
 }
 
+func completer(d prompt.Document) []prompt.Suggest {
+	return []prompt.Suggest{
+		{Text: "test"},
+	}
+}
+
 func chat() {
 	opts := struct {
 		ChatGPTOptions
@@ -349,7 +355,20 @@ func chat() {
 
 	talk := func(text string) {
 		var err error
+		text = strings.TrimSpace(text)
 		if text == "" {
+			return
+		}
+
+		// run a shell command
+		if text[0] == '$' {
+			out, err := runCommand(text[1:])
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			fmt.Println(out)
+			messages = append(messages, &Message{Role: User, Content: out})
 			return
 		}
 		if text == "exit" || text == "quit" {
@@ -373,7 +392,7 @@ func chat() {
 		}
 	}
 
-	prompt.New(talk, func(d prompt.Document) []prompt.Suggest { return nil },
+	prompt.New(talk, completer,
 		prompt.OptionPrefix("ChatGPT > "),
 		prompt.OptionPrefixTextColor(prompt.Green),
 	).Run()
