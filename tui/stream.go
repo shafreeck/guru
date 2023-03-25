@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -77,8 +78,39 @@ func (s *StreamModel[E, S]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
+func WrapWord(text []byte, width int) []byte {
+	if len(text) < width {
+		return text
+	}
+
+	var total, length, prev int
+	out := bytes.NewBuffer(nil)
+	for i, w := 0, 0; i < len(text); i += w {
+		r, size := utf8.DecodeRune(text[i:])
+		length += size
+
+		if byte(r) == '\n' || byte(r) == ' ' {
+			total += length
+			length = 0
+		}
+		if length > width {
+			total += length
+			length = 0
+			out.Write(text[prev:i])
+			prev = i
+			out.WriteByte('\n')
+		}
+		w = size
+	}
+	out.Write(text[prev:])
+	out.WriteByte('\n')
+	return out.Bytes()
+}
+
 func (s *StreamModel[E, S]) View() string {
-	text, err := s.renderer.Render(s.out.Bytes())
+	// this is a work around to wrap words for Chinese
+	// TODO: find a better way
+	text, err := s.renderer.Render(WrapWord(s.out.Bytes(), 110))
 	if err != nil {
 		return err.Error()
 	}
