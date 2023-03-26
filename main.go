@@ -400,6 +400,7 @@ func chat() {
 				}
 			}())
 			builtins.Launch(args...)
+			return
 		}
 
 		// avoid adding a dupicated input text when an error occurred for the

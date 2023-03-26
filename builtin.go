@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
 	"github.com/c-bata/go-prompt"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/shafreeck/cortana"
 )
 
@@ -12,6 +14,18 @@ import (
 
 type builtinCommand struct {
 	*cortana.Cortana
+}
+
+func (c *builtinCommand) Launch(args ...string) {
+	cmd := c.SearchCommand(args)
+	if cmd == nil {
+		usage := lipgloss.NewStyle().Foreground(
+			lipgloss.AdaptiveColor{Dark: "#79b3ec", Light: "#1d73c9"}).
+			Render(c.UsageString())
+		fmt.Println(usage)
+		return
+	}
+	cmd.Proc()
 }
 
 var builtins = builtinCommand{Cortana: cortana.New()}
