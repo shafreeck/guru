@@ -114,8 +114,10 @@ func (m *messageManager) shrink(messages []*Message) []*Message {
 		if err != nil {
 			fmt.Println(err)
 		}
+	} else {
+		end = size
 	}
-	if end > size || end == 0 {
+	if end > size {
 		end = size
 	}
 	return messages[begin:end]
