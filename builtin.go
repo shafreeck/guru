@@ -39,12 +39,20 @@ func init() {
 }
 
 func builtinCompleter(d prompt.Document) []prompt.Suggest {
-	prefix := strings.TrimSpace(d.CurrentLineBeforeCursor())
+	prefix := strings.TrimLeft(d.CurrentLineBeforeCursor(), " ")
 	cmds := builtins.Complete(prefix)
 	var suggests []prompt.Suggest
 	for _, cmd := range cmds {
+		path := cmd.Path
+		fields := strings.Fields(prefix)
+		if strings.HasSuffix(prefix, " ") || len(fields) > 1 {
+			path = strings.TrimSpace(strings.TrimPrefix(cmd.Path, strings.TrimSpace(fields[0])))
+		}
+		if path == "" {
+			continue
+		}
 		suggests = append(suggests, prompt.Suggest{
-			Text: cmd.Path,
+			Text: path,
 		})
 	}
 	return suggests
@@ -94,17 +102,20 @@ func (m *messageManager) shrink(messages []*Message) []*Message {
 		if err != nil {
 			fmt.Println(err)
 		}
+		if begin >= size {
+			return messages
+		}
 	}
-	if len(parts) == 1 && begin < size {
+	if len(parts) == 1 {
 		return messages[begin:]
 	}
-	if v := parts[0]; v != "" {
+	if v := parts[1]; v != "" {
 		end, err = strconv.Atoi(parts[1])
 		if err != nil {
 			fmt.Println(err)
 		}
 	}
-	if end > size {
+	if end > size || end == 0 {
 		end = size
 	}
 	return messages[begin:end]
