@@ -142,7 +142,7 @@ func chat() {
 		verbose(blue.Render(fmt.Sprintf("send messages: %d", len(messages))))
 		if opts.ChatGPTOptions.Stream {
 			s, err := tui.Display[tui.Model[chan *AnswerChunk], chan *AnswerChunk](ctx,
-				tui.NewSpinnerModel("connecting the stream", func() (chan *AnswerChunk, error) {
+				tui.NewSpinnerModel("", func() (chan *AnswerChunk, error) {
 					return c.stream(ctx, opts.APIKey, messages)
 				}))
 			if err != nil {
