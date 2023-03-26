@@ -13,6 +13,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/c-bata/go-prompt"
 	"github.com/charmbracelet/lipgloss"
@@ -193,6 +194,24 @@ func (c *ChatGPTClient) stream(ctx context.Context, apiKey string, messages []*M
 	return ch, nil
 }
 
+func completer(d prompt.Document) []prompt.Suggest {
+	if d.LastKeyStroke() != prompt.Tab {
+		return nil
+	}
+
+	line := strings.TrimLeft(d.CurrentLineBeforeCursor(), " ")
+	if line == "" {
+		return nil
+	}
+	switch line[0] {
+	case '$':
+		return cmdCompleter(d)
+	case ':':
+		return builtinCompleter(d)
+	}
+	return nil
+}
+
 func chat() {
 	opts := struct {
 		ChatGPTOptions
@@ -365,8 +384,22 @@ func chat() {
 			messages = append(messages, &Message{Role: User, Content: out})
 			return
 		}
-		if text == "exit" || text == "quit" {
-			os.Exit(0)
+		// run a builtin command
+		if text[0] == ':' {
+			args := strings.FieldsFunc(text, func() func(r rune) bool {
+				arounded := false
+				return func(r rune) bool {
+					if r == '\'' || r == '"' {
+						arounded = !arounded
+						return true
+					}
+					if unicode.IsSpace(r) && !arounded {
+						return true
+					}
+					return false
+				}
+			}())
+			builtins.Launch(args...)
 		}
 
 		// avoid adding a dupicated input text when an error occurred for the
@@ -386,7 +419,7 @@ func chat() {
 		}
 	}
 
-	prompt.New(talk, cmdCompleter,
+	prompt.New(talk, completer,
 		prompt.OptionPrefix("ChatGPT > "),
 		prompt.OptionPrefixTextColor(prompt.Green),
 	).Run()

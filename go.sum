@@ -105,6 +105,10 @@ github.com/shafreeck/cortana v0.0.0-20230324073127-b7b1204e84e1 h1:eNcfgX/2qRZ90
 github.com/shafreeck/cortana v0.0.0-20230324073127-b7b1204e84e1/go.mod h1:rc+rrPHKy2vS6yXSmzdyRZzj8L8MKlEllIS5ptnSCz8=
 github.com/shafreeck/cortana v0.0.0-20230325140832-fce779765bd2 h1:sQt6P6EKt1YhhqKchAvwcmhHE6kjM7bBOD4wOGnqhsg=
 github.com/shafreeck/cortana v0.0.0-20230325140832-fce779765bd2/go.mod h1:rc+rrPHKy2vS6yXSmzdyRZzj8L8MKlEllIS5ptnSCz8=
+github.com/shafreeck/cortana v0.0.0-20230326024806-aedefae7257c h1:V3m0l7iM6cSP9cDgshqQu/H2TfJ8vOWU6uN4/oep9VI=
+github.com/shafreeck/cortana v0.0.0-20230326024806-aedefae7257c/go.mod h1:rc+rrPHKy2vS6yXSmzdyRZzj8L8MKlEllIS5ptnSCz8=
+github.com/shafreeck/cortana v0.0.0-20230326031449-12f570603e95 h1:rb4wFVXPX9wslh41kAB8WOqaMnL8y7u6fu9b4gO6svg=
+github.com/shafreeck/cortana v0.0.0-20230326031449-12f570603e95/go.mod h1:rc+rrPHKy2vS6yXSmzdyRZzj8L8MKlEllIS5ptnSCz8=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
