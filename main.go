@@ -50,6 +50,7 @@ func chat() {
 		System            string        `cortana:"--system, -,, the optional system prompt for initializing the chatgpt"`
 		Filename          string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)"`
 		Verbose           bool          `cortana:"--verbose, -v, false, print verbose messages"`
+		Stdin             bool          `cortana:"--stdin, -, false, read from stdin, works as '-f --'"`
 		NonInteractive    bool          `cortana:"--non-interactive, -n, false, chat in none interactive mode"`
 		DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded"`
 		Text              string
@@ -110,10 +111,10 @@ func chat() {
 	if opts.Text != "" {
 		messages = append(messages, &Message{Role: User, Content: opts.Text})
 	}
-	if opts.Filename != "" {
+	if opts.Filename != "" || opts.Stdin {
 		var content []byte
 		var err error
-		if opts.Filename == "--" {
+		if opts.Filename == "--" || opts.Stdin {
 			verbose(blue.Render("read from stdin"))
 			content, err = io.ReadAll(os.Stdin)
 			if err != nil {
@@ -131,7 +132,7 @@ func chat() {
 				log.Fatal("read http body failed", err)
 			}
 			resp.Body.Close()
-		} else {
+		} else if opts.Filename != "" {
 			verbose(blue.Render("read local file: " + opts.Filename))
 			content, err = os.ReadFile(opts.Filename)
 			if err != nil {
