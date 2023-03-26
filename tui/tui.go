@@ -19,6 +19,7 @@ type (
 type Model[T any] interface {
 	tea.Model
 	Value() T
+	Error() error
 }
 
 func Display[M Model[V], V any](ctx context.Context, m M) (V, error) {

@@ -120,3 +120,7 @@ func (s *StreamModel[E, S]) View() string {
 func (s *StreamModel[E, S]) Value() string {
 	return s.out.String()
 }
+
+func (s *StreamModel[E, S]) Error() error {
+	return s.err
+}

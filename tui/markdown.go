@@ -31,3 +31,7 @@ func (m *MarkdownModel) View() string {
 func (m *MarkdownModel) Value() string {
 	return m.Text
 }
+
+func (m *MarkdownModel) Error() error {
+	return nil
+}

@@ -71,3 +71,7 @@ func (s *SpinnerModel[V]) View() string {
 func (s *SpinnerModel[V]) Value() V {
 	return s.Val
 }
+
+func (s *SpinnerModel[V]) Error() error {
+	return s.err
+}
