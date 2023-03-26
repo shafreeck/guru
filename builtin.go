@@ -35,10 +35,6 @@ func init() {
 	builtins.Alias(":quit", ":exit")
 }
 
-func exit() {
-	os.Exit(0)
-}
-
 func builtinCompleter(d prompt.Document) []prompt.Suggest {
 	prefix := strings.TrimSpace(d.CurrentLineBeforeCursor())
 	cmds := builtins.Complete(prefix)
@@ -49,4 +45,8 @@ func builtinCompleter(d prompt.Document) []prompt.Suggest {
 		})
 	}
 	return suggests
+}
+
+func exit() {
+	os.Exit(0)
 }
