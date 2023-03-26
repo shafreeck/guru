@@ -99,6 +99,7 @@ func chat() {
 		messages = mm.shrink(messages)
 	}, "shrink messages")
 	builtins.Alias(":messages reset", ":messages shrink 0:0")
+	builtins.Alias(":reset", ":messages reset")
 
 	if opts.System != "" {
 		messages = append(messages, &Message{Role: System, Content: opts.System})
