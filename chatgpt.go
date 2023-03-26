@@ -47,6 +47,8 @@ type Answer struct {
 	Error struct {
 		Message string `json:"message"`
 		Type    string `json:"type"`
+		Param   string `json:"param"`
+		Code    string `json:"code"`
 	}
 }
 type AnswerChoice struct {
@@ -69,7 +71,9 @@ type AnswerChunk struct {
 	Error struct {
 		Message string `json:"message"`
 		Type    string `json:"type"`
-	}
+		Param   string `json:"param"`
+		Code    string `json:"code"`
+	} `json:"error"`
 }
 
 type ChatGPTOptions struct {
@@ -161,14 +165,18 @@ func (c *ChatGPTClient) stream(ctx context.Context, apiKey string, messages []*M
 		var last *AnswerChunk
 		scanner := bufio.NewScanner(resp.Body)
 		content := bytes.NewBuffer(nil)
+		errbuf := bytes.NewBuffer(nil)
 		for scanner.Scan() {
 			ansc := &AnswerChunk{}
 			line := strings.TrimSpace(scanner.Text())
 			if line == "" {
 				continue
 			}
+
 			prefix := "data:"
+			// it would be an error event if not data: prefixed
 			if !strings.HasPrefix(line, prefix) {
+				errbuf.WriteString(line)
 				continue
 			}
 			if line == "data: [DONE]" {
@@ -204,6 +212,21 @@ func (c *ChatGPTClient) stream(ctx context.Context, apiKey string, messages []*M
 				return
 			case ch <- ansc:
 			}
+		}
+
+		if errbuf.Len() == 0 {
+			return
+		}
+		// send the error message
+		ansc := &AnswerChunk{}
+		if err := json.Unmarshal(errbuf.Bytes(), ansc); err != nil {
+			ansc.Error.Message = err.Error()
+			ansc.Error.Type = "command_fail"
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- ansc:
 		}
 	}()
 	return ch, nil

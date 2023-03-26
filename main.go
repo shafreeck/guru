@@ -153,6 +153,9 @@ func chat() {
 				return nil
 			}
 			content, err := tui.Display[tui.Model[string], string](ctx, tui.NewStreamModel(s, func(event *AnswerChunk) (string, error) {
+				if event.Error.Message != "" {
+					return "", fmt.Errorf("%s: %s", event.Error.Type, event.Error.Message)
+				}
 				if len(event.Choices) == 0 {
 					return "", nil
 				}

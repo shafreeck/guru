@@ -26,5 +26,8 @@ func Display[M Model[V], V any](ctx context.Context, m M) (V, error) {
 	p := tea.NewProgram(m, tea.WithContext(ctx))
 	done, err := p.Run()
 	res := done.(M)
+	if res.Error() != nil {
+		err = res.Error()
+	}
 	return res.Value(), err
 }
