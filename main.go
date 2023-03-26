@@ -43,19 +43,19 @@ func completer(d prompt.Document) []prompt.Suggest {
 func chat() {
 	opts := struct {
 		ChatGPTOptions
-		APIKey             string        `cortana:"--openai-api-key, -, -, set your openai api key"`
-		Socks5             string        `cortana:"--socks5, -, , set the socks5 proxy"`
-		Timeout            time.Duration `cortana:"--timeout, -, 180s, the timeout duration for a request"`
-		Interactive        bool          `cortana:"--interactive, -i, true, chat in interactive mode, deprecated"`
-		System             string        `cortana:"--system, -,, the optional system prompt for initializing the chatgpt"`
-		Filename           string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)"`
-		Verbose            bool          `cortana:"--verbose, -v, false, print verbose messages"`
-		DisableInteractive bool          `cortana:"--disable-interactive, -, false, chat in none interactive mode"`
-		DisableAutoShrink  bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded"`
-		Text               string
+		APIKey            string        `cortana:"--openai-api-key, -, -, set your openai api key"`
+		Socks5            string        `cortana:"--socks5, -, , set the socks5 proxy"`
+		Timeout           time.Duration `cortana:"--timeout, -, 180s, the timeout duration for a request"`
+		Interactive       bool          `cortana:"--interactive, -i, true, chat in interactive mode, deprecated"`
+		System            string        `cortana:"--system, -,, the optional system prompt for initializing the chatgpt"`
+		Filename          string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)"`
+		Verbose           bool          `cortana:"--verbose, -v, false, print verbose messages"`
+		NonInteractive    bool          `cortana:"--non-interactive, -n, false, chat in none interactive mode"`
+		DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded"`
+		Text              string
 	}{}
 	cortana.Parse(&opts)
-	opts.Interactive = !opts.DisableInteractive
+	opts.Interactive = !opts.NonInteractive
 
 	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#e61919"))
 	blue := lipgloss.NewStyle().Foreground(lipgloss.Color("#2da9d2"))
