@@ -140,3 +140,14 @@ func (m *messageManager) delete(messages []*Message) []*Message {
 	}
 	return updated
 }
+func (m *messageManager) autoShrink(messages []*Message) (int, []*Message) {
+	size := len(messages)
+	switch size {
+	case 0, 1:
+		return 0, messages
+	case 2, 3:
+		return 1, messages[size-1:]
+	}
+	idx := size / 2
+	return idx, messages[idx:]
+}

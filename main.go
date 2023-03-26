@@ -43,16 +43,19 @@ func completer(d prompt.Document) []prompt.Suggest {
 func chat() {
 	opts := struct {
 		ChatGPTOptions
-		APIKey      string        `cortana:"--openai-api-key, -, -, set your openai api key"`
-		Socks5      string        `cortana:"--socks5, -, , set the socks5 proxy"`
-		Timeout     time.Duration `cortana:"--timeout, -, 180s, the timeout duration for a request"`
-		Interactive bool          `cortana:"--interactive, -i, true, chat in interactive mode, it will be in this mode default if no text supplied"`
-		System      string        `cortana:"--system, -,, the optional system prompt for initializing the chatgpt"`
-		Filename    string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)"`
-		Verbose     bool          `cortana:"--verbose, -v, false, print verbose messages"`
-		Text        string
+		APIKey             string        `cortana:"--openai-api-key, -, -, set your openai api key"`
+		Socks5             string        `cortana:"--socks5, -, , set the socks5 proxy"`
+		Timeout            time.Duration `cortana:"--timeout, -, 180s, the timeout duration for a request"`
+		Interactive        bool          `cortana:"--interactive, -i, true, chat in interactive mode, deprecated"`
+		System             string        `cortana:"--system, -,, the optional system prompt for initializing the chatgpt"`
+		Filename           string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)"`
+		Verbose            bool          `cortana:"--verbose, -v, false, print verbose messages"`
+		DisableInteractive bool          `cortana:"--disable-interactive, -, false, chat in none interactive mode"`
+		DisableAutoShrink  bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded"`
+		Text               string
 	}{}
 	cortana.Parse(&opts)
+	opts.Interactive = !opts.DisableInteractive
 
 	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#e61919"))
 	blue := lipgloss.NewStyle().Foreground(lipgloss.Color("#2da9d2"))
@@ -141,6 +144,7 @@ func chat() {
 	ask := func() error {
 		verbose(blue.Render(fmt.Sprintf("send messages: %d", len(messages))))
 		if opts.ChatGPTOptions.Stream {
+		retry:
 			s, err := tui.Display[tui.Model[chan *AnswerChunk], chan *AnswerChunk](ctx,
 				tui.NewSpinnerModel("", func() (chan *AnswerChunk, error) {
 					return c.stream(ctx, opts.APIKey, messages)
@@ -154,7 +158,7 @@ func chat() {
 			}
 			content, err := tui.Display[tui.Model[string], string](ctx, tui.NewStreamModel(s, func(event *AnswerChunk) (string, error) {
 				if event.Error.Message != "" {
-					return "", fmt.Errorf("%s: %s", event.Error.Type, event.Error.Message)
+					return "", fmt.Errorf("%s: %s", event.Error.Code, event.Error.Message)
 				}
 				if len(event.Choices) == 0 {
 					return "", nil
@@ -162,6 +166,21 @@ func chat() {
 				return event.Choices[0].Delta.Content, nil
 			}))
 			if err != nil {
+				if strings.Contains(err.Error(), "context_length_exceeded") && len(messages) > 1 {
+					if !opts.DisableAutoShrink {
+						var n int
+						n, messages = mm.autoShrink(messages)
+						if n > 0 {
+							if n == 1 {
+								fmt.Println(blue.Render(fmt.Sprintf("%d message shrinked", n)))
+							} else {
+								fmt.Println(blue.Render(fmt.Sprintf("%d messages shrinked", n)))
+							}
+						}
+						goto retry
+					}
+					err = fmt.Errorf("%w\n\nUse `:messages shrink <expr>` to reduce the tokens", err)
+				}
 				return err
 			}
 			messages = append(messages, &Message{Role: Assistant, Content: content})
