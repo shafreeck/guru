@@ -84,8 +84,22 @@ func chat() {
 		cli:  cli,
 		opts: opts.ChatGPTOptions,
 	}
+	c.RegisterBuiltinCommands()
 
 	var messages []*Message
+	mm := &messageManager{}
+	// Register messageManager commands
+	builtins.AddCommand(":messages", func() {
+		mm.display(messages)
+	}, "show messages")
+	builtins.AddCommand(":messages delete", func() {
+		messages = mm.delete(messages)
+	}, "delete messages")
+	builtins.AddCommand(":messages shrink", func() {
+		messages = mm.shrink(messages)
+	}, "shrink messages")
+	builtins.Alias(":messages reset", ":messages shrink 0:0")
+
 	if opts.System != "" {
 		messages = append(messages, &Message{Role: System, Content: opts.System})
 	}
@@ -123,19 +137,23 @@ func chat() {
 		messages = append(messages, &Message{Role: User, Content: string(content)})
 	}
 
-	ask := func(messages []*Message) error {
+	ask := func() error {
 		verbose(blue.Render(fmt.Sprintf("send messages: %d", len(messages))))
 		if opts.ChatGPTOptions.Stream {
 			s, err := c.stream(ctx, opts.APIKey, messages)
 			if err != nil {
 				return err
 			}
-			tui.Display[tui.Model[string], string](ctx, tui.NewStreamModel(s, func(event *AnswerChunk) (string, error) {
+			content, err := tui.Display[tui.Model[string], string](ctx, tui.NewStreamModel(s, func(event *AnswerChunk) (string, error) {
 				if len(event.Choices) == 0 {
 					return "", nil
 				}
 				return event.Choices[0].Delta.Content, nil
 			}))
+			if err != nil {
+				return err
+			}
+			messages = append(messages, &Message{Role: Assistant, Content: content})
 			return nil
 		}
 		var ans *Answer
@@ -186,7 +204,7 @@ func chat() {
 	}
 
 	if len(messages) > 0 {
-		if err := ask(messages); err != nil {
+		if err := ask(); err != nil {
 			fmt.Println(red.Render(err.Error()))
 		}
 		if !opts.Interactive {
@@ -195,6 +213,12 @@ func chat() {
 	}
 
 	talk := func(text string) {
+		// update to ChatGPT client
+		// TODO: use a more proper way
+		defer func() {
+			c.messages = messages
+		}()
+
 		var err error
 		text = strings.TrimSpace(text)
 		if text == "" {
@@ -242,7 +266,7 @@ func chat() {
 			messages = append(messages, &Message{Role: User, Content: text})
 		}
 
-		err = ask(messages)
+		err = ask()
 		if err != nil {
 			fmt.Println(red.Render(err.Error()))
 		}

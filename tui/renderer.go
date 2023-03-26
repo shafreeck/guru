@@ -1,9 +1,10 @@
 package tui
 
 import (
-	"encoding/json"
+	"bytes"
 	"os"
 
+	"github.com/alecthomas/chroma/quick"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/term"
@@ -16,12 +17,12 @@ type Renderer interface {
 type JSONRenderer struct {
 }
 
-func (r *JSONRenderer) Render(text []byte, err error) ([]byte, error) {
-	var v interface{}
-	if err := json.Unmarshal(text, &v); err != nil {
+func (r *JSONRenderer) Render(text []byte) ([]byte, error) {
+	out := bytes.NewBuffer(nil)
+	if err := quick.Highlight(out, string(text), "json", "terminal256", "monokai"); err != nil {
 		return nil, err
 	}
-	return json.MarshalIndent(v, "", "  ")
+	return out.Bytes(), nil
 }
 
 type TextRenderer struct {

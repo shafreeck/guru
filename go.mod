@@ -54,3 +54,5 @@ require (
 	golang.org/x/text v0.8.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 )
+
+replace github.com/shafreeck/cortana => /Users/shafreeck/Codes/cortana

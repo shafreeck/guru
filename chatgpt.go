@@ -5,9 +5,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/shafreeck/guru/tui"
 )
 
 type ChatRole string
@@ -39,16 +42,17 @@ type Answer struct {
 		TotalTokens      int `json:"total_tokens"`
 	} `json:"usage"`
 
-	Choices []struct {
-		Message      *Message `json:"message"`
-		FinishReason string   `json:"finish_reason"`
-		Index        int      `json:"index"`
-	} `json:"choices"`
+	Choices []AnswerChoice `json:"choices"`
 
 	Error struct {
 		Message string `json:"message"`
 		Type    string `json:"type"`
 	}
+}
+type AnswerChoice struct {
+	Message      *Message `json:"message"`
+	FinishReason string   `json:"finish_reason"`
+	Index        int      `json:"index"`
 }
 type AnswerChunk struct {
 	ID      string `json:"id"`
@@ -84,6 +88,9 @@ type ChatGPTOptions struct {
 type ChatGPTClient struct {
 	opts ChatGPTOptions
 	cli  *http.Client
+
+	history  []*Answer
+	messages []*Message
 }
 
 func (c *ChatGPTClient) ask(ctx context.Context, apiKey string, messages []*Message) (*Answer, error) {
@@ -119,6 +126,7 @@ func (c *ChatGPTClient) ask(ctx context.Context, apiKey string, messages []*Mess
 	if err := json.Unmarshal(data, &ans); err != nil {
 		return nil, err
 	}
+	c.history = append(c.history, &ans)
 	return &ans, nil
 }
 
@@ -150,7 +158,9 @@ func (c *ChatGPTClient) stream(ctx context.Context, apiKey string, messages []*M
 	go func() {
 		defer resp.Body.Close()
 		defer close(ch)
+		var last *AnswerChunk
 		scanner := bufio.NewScanner(resp.Body)
+		content := bytes.NewBuffer(nil)
 		for scanner.Scan() {
 			ansc := &AnswerChunk{}
 			line := strings.TrimSpace(scanner.Text())
@@ -162,6 +172,20 @@ func (c *ChatGPTClient) stream(ctx context.Context, apiKey string, messages []*M
 				continue
 			}
 			if line == "data: [DONE]" {
+				// build an Answer to add to history
+				ans := &Answer{
+					ID:      last.ID,
+					Object:  last.Object,
+					Created: last.Created,
+					Model:   last.Model,
+					Choices: []AnswerChoice{
+						{
+							Index:        last.Choices[0].Index,
+							Message:      &Message{Role: Assistant, Content: content.String()},
+							FinishReason: last.Choices[0].FinishReason,
+						}},
+				}
+				c.history = append(c.history, ans)
 				return
 			}
 			text := line[len(prefix):]
@@ -171,6 +195,10 @@ func (c *ChatGPTClient) stream(ctx context.Context, apiKey string, messages []*M
 				ansc.Error.Type = "command_fail"
 			}
 
+			if len(ansc.Choices) > 0 {
+				last = ansc
+				content.WriteString(ansc.Choices[0].Delta.Content)
+			}
 			select {
 			case <-ctx.Done():
 				return
@@ -179,4 +207,28 @@ func (c *ChatGPTClient) stream(ctx context.Context, apiKey string, messages []*M
 		}
 	}()
 	return ch, nil
+}
+
+func (c *ChatGPTClient) respCommand() {
+	opts := struct {
+		N int `cortana:"--n, -n, 0, list the first n messages"`
+	}{}
+
+	builtins.Parse(&opts)
+	render := &tui.JSONRenderer{}
+	for _, resp := range c.history {
+		data, err := json.Marshal(resp)
+		if err != nil {
+			fmt.Println(err)
+		}
+		text, err := render.Render(data)
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(string(text))
+	}
+}
+
+func (c *ChatGPTClient) RegisterBuiltinCommands() {
+	builtins.AddCommand(":resp", c.respCommand, "list history responses")
 }
