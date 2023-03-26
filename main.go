@@ -173,9 +173,9 @@ func chat() {
 						n, messages = mm.autoShrink(messages)
 						if n > 0 {
 							if n == 1 {
-								fmt.Println(blue.Render(fmt.Sprintf("%d message shrinked", n)))
+								fmt.Println(blue.Render(fmt.Sprintf("%d message shrinked because of tokens limitation", n)))
 							} else {
-								fmt.Println(blue.Render(fmt.Sprintf("%d messages shrinked", n)))
+								fmt.Println(blue.Render(fmt.Sprintf("%d messages shrinked because of tokens limitation", n)))
 							}
 						}
 						goto retry
