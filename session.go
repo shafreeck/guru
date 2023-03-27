@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shafreeck/guru/tui"
 )
 
 type record struct {
@@ -112,10 +113,18 @@ func (s *session) load() error {
 }
 
 func (s *session) replay(records []*record) {
+	render := &tui.JSONRenderer{}
+	fmt.Println(blue.Render("replay session:", s.sid))
 	for _, r := range records {
 		args := strings.Fields(r.Op)
+		fmt.Print(blue.Render(r.Op), " ")
 		if r.Msg != nil {
+			data, _ := json.Marshal(r.Msg)
+			data, _ = render.Render(data)
+			fmt.Println(string(data))
 			args = append(args, "--role", string(r.Msg.Role), r.Msg.Content)
+		} else {
+			fmt.Println()
 		}
 		builtins.Launch(context.Background(), args)
 	}
@@ -138,16 +147,36 @@ func (s *session) list() {
 	}
 }
 
+// listen on builtin commands
+func (s *session) onCommandEvent(args []string) {
+	op := strings.Join(args, " ")
+	switch {
+	case strings.HasPrefix(op, ":reset"):
+		fallthrough
+	case strings.HasPrefix(op, ":append"):
+		fallthrough
+	case strings.HasPrefix(op, ":message shrink"):
+		fallthrough
+	case strings.HasPrefix(op, ":message delete"):
+		fallthrough
+	case strings.HasPrefix(op, ":message append"):
+		s.history.append(op, nil)
+	}
+}
+
+func (s *session) listenOnBuiltins() {
+	builtins.sess = s
+}
+
 func (s *session) loadCommand() {
 	opts := struct {
 		SID string `cortana:"sid"`
 	}{}
 	builtins.Parse(&opts)
 
-	s.mm.messages = nil
+	s.mm.messages = nil // clear the messages
 	s.history = history{}
-	s.sid = opts.SID
-	s.load()
+	s.open(opts.SID)
 }
 
 func (s *session) registerCommands() {

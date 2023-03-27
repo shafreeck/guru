@@ -98,6 +98,8 @@ func chat() {
 		log.Fatal(err)
 	}
 	defer sess.close()
+	// only listen on command events after open(to avoid being fired by replaying)
+	sess.listenOnBuiltins()
 
 	ctx := context.Background()
 	cli := &http.Client{Timeout: opts.Timeout}

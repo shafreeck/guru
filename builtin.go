@@ -17,6 +17,7 @@ import (
 type builtinCommand struct {
 	*cortana.Cortana
 
+	sess *session
 	ctx  context.Context
 	text string
 }
@@ -34,6 +35,9 @@ func (c *builtinCommand) Launch(ctx context.Context, args []string) string {
 	cmd.Proc()
 	text := c.text
 	c.text = "" // clear the state
+	if c.sess != nil {
+		c.sess.onCommandEvent(args)
+	}
 	return text
 }
 
