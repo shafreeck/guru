@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -17,18 +18,31 @@ import (
 
 type builtinCommand struct {
 	*cortana.Cortana
+
+	ctx  context.Context
+	text string
 }
 
-func (c *builtinCommand) Launch(args ...string) {
+func (c *builtinCommand) Launch(ctx context.Context, args ...string) string {
 	cmd := c.SearchCommand(args)
 	if cmd == nil {
 		usage := lipgloss.NewStyle().Foreground(
 			lipgloss.AdaptiveColor{Dark: "#79b3ec", Light: "#1d73c9"}).
 			Render(c.UsageString())
 		fmt.Println(usage)
-		return
+		return ""
 	}
+	c.ctx = ctx
 	cmd.Proc()
+	text := c.text
+	c.text = "" // clear the state
+	return text
+}
+
+func builtin(f func(ctx context.Context) string) func() {
+	return func() {
+		builtins.text = f(builtins.ctx)
+	}
 }
 
 var builtins = builtinCommand{Cortana: cortana.New()}
@@ -36,6 +50,7 @@ var builtins = builtinCommand{Cortana: cortana.New()}
 func init() {
 	builtins.AddCommand(":exit", exit, "exit guru")
 	builtins.Alias(":quit", ":exit")
+	builtins.AddCommand(":read", builtin(read), "read from stdin with a textarea")
 }
 
 func builtinCompleter(d prompt.Document) []prompt.Suggest {
@@ -60,6 +75,17 @@ func builtinCompleter(d prompt.Document) []prompt.Suggest {
 
 func exit() {
 	os.Exit(0)
+}
+
+func read(ctx context.Context) string {
+	opts := struct {
+		Prompt string `cortana:"prompt"`
+	}{}
+	builtins.Parse(&opts)
+
+	// no error in this model
+	text, _ := tui.Display[tui.Model[string], string](ctx, tui.NewTextAreaModel())
+	return text
 }
 
 type messageManager struct {

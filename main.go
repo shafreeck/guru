@@ -282,8 +282,10 @@ func chat() {
 					return false
 				}
 			}())
-			builtins.Launch(args...)
-			return
+			text = strings.TrimSpace(builtins.Launch(ctx, args...))
+			if text == "" {
+				return
+			}
 		}
 
 		// avoid adding a dupicated input text when an error occurred for the
