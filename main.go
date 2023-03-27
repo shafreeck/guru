@@ -95,13 +95,16 @@ func chat() {
 	// Register messageManager commands
 	builtins.AddCommand(":messages", func() {
 		mm.display(messages)
-	}, "show messages")
+	}, "list messages")
 	builtins.AddCommand(":messages delete", func() {
 		messages = mm.delete(messages)
 	}, "delete messages")
 	builtins.AddCommand(":messages shrink", func() {
 		messages = mm.shrink(messages)
 	}, "shrink messages")
+	builtins.AddCommand(":messages show", func() {
+		mm.show(messages)
+	}, "show certain messages")
 	builtins.Alias(":messages reset", ":messages shrink 0:0")
 	builtins.Alias(":reset", ":messages reset")
 

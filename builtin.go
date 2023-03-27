@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -157,7 +158,7 @@ func (m *messageManager) delete(messages []*Message) []*Message {
 	builtins.Parse(&opts, cortana.IgnoreUnknownArgs())
 
 	for _, index := range opts.Indexes {
-		if index < 0 || index > len(messages) {
+		if index < 0 || index >= len(messages) {
 			continue
 		}
 		messages[index] = nil
@@ -180,4 +181,23 @@ func (m *messageManager) autoShrink(messages []*Message) (int, []*Message) {
 	}
 	idx := size / 2
 	return idx, messages[idx:]
+}
+
+func (m *messageManager) show(messages []*Message) {
+	opts := struct {
+		Indexes []int `cortana:"index, -, -"`
+		Role    bool  `cortana:"--role, -r, false, show message with role"`
+	}{}
+	builtins.Parse(&opts, cortana.IgnoreUnknownArgs())
+	out := bytes.NewBuffer(nil)
+	for _, index := range opts.Indexes {
+		if index < 0 || index >= len(messages) {
+			continue
+		}
+		if opts.Role {
+			out.WriteString(string(messages[index].Role) + ":\n\n")
+		}
+		out.WriteString(messages[index].Content + "\n\n")
+	}
+	tui.Display[tui.Model[string], string](context.Background(), tui.NewMarkdownModel(out.String()))
 }
