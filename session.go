@@ -168,19 +168,21 @@ func (s *session) listenOnBuiltins() {
 	builtins.sess = s
 }
 
-func (s *session) loadCommand() {
+func (s *session) switchCommand() {
 	opts := struct {
 		SID string `cortana:"sid"`
 	}{}
 	builtins.Parse(&opts)
 
+	builtins.sess = nil
 	s.mm.messages = nil // clear the messages
 	s.history = history{}
 	s.open(opts.SID)
+	builtins.sess = s
 }
 
 func (s *session) registerCommands() {
 	builtins.AddCommand(":session list", s.list, "list sessions")
-	builtins.AddCommand(":session load", s.loadCommand, "load a session")
+	builtins.AddCommand(":session switch", s.switchCommand, "switch a session")
 	s.mm.registerMessageCommands()
 }
