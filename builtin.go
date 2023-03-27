@@ -146,7 +146,9 @@ func (m *messageManager) shrink(messages []*Message) []*Message {
 	if end > size {
 		end = size
 	}
-	return messages[begin:end]
+	left := messages[begin:end]
+	m.display(left)
+	return left
 }
 func (m *messageManager) delete(messages []*Message) []*Message {
 	opts := struct {
