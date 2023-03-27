@@ -107,8 +107,10 @@ func (s *session) load() error {
 		}
 		records = append(records, r)
 	}
-	s.history.records = records
-	s.replay(records)
+	if len(records) > 0 {
+		s.history.records = records
+		s.replay(records)
+	}
 	return nil
 }
 

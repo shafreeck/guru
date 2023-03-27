@@ -59,7 +59,7 @@ func chat() {
 		NonInteractive    bool          `cortana:"--non-interactive, -n, false, chat in none interactive mode"`
 		DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded"`
 		SessionDir        string        `cortana:"--session-dir, -, ~/.guru/session, the session directory"`
-		SessionID         string        `cortana:"--session-id, -, , the session id"`
+		SessionID         string        `cortana:"--session-id, -s,, the session id"`
 		Text              string
 	}{}
 	cortana.Parse(&opts)
