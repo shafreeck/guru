@@ -79,13 +79,13 @@ func exit() {
 
 func read(ctx context.Context) string {
 	opts := struct {
-		Prompt string `cortana:"prompt"`
+		Prompt []string `cortana:"prompt"`
 	}{}
 	builtins.Parse(&opts)
 
 	// no error in this model
 	text, _ := tui.Display[tui.Model[string], string](ctx, tui.NewTextAreaModel())
-	return text
+	return strings.Join(opts.Prompt, " ") + "\n" + text
 }
 
 type messageManager struct {
