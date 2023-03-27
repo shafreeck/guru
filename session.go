@@ -71,10 +71,15 @@ func (s *session) open(sid string) error {
 	s.history.w = f
 	return nil
 }
+
+func (s *session) remove(sid string) error {
+	return os.Remove(path.Join(s.dir, sid))
+}
+
 func (s *session) close() {
 	// nothing saved, delete the session
 	if len(s.history.records) == 0 {
-		os.Remove(path.Join(s.dir, s.sid))
+		s.remove(s.sid)
 	}
 	if s.history.w != nil {
 		s.history.w.Close()
@@ -138,14 +143,12 @@ func (s *session) list() {
 		fmt.Println(red.Render(err.Error()))
 	}
 	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), "chat-") {
-			if entry.Name() == s.sid {
-				fmt.Print(blue.Render("* "))
-			} else {
-				fmt.Print("  ")
-			}
-			fmt.Println(entry.Name())
+		if entry.Name() == s.sid {
+			fmt.Print(blue.Render("* "))
+		} else {
+			fmt.Print("  ")
 		}
+		fmt.Println(entry.Name())
 	}
 }
 
@@ -170,20 +173,69 @@ func (s *session) listenOnBuiltins() {
 	builtins.sess = s
 }
 
+func (s *session) switchSession(sid string) {
+	s.close()
+	builtins.sess = nil
+	s.mm.messages = nil // clear the messages
+	s.history = history{}
+	s.open(sid)
+	builtins.sess = s
+}
+
 func (s *session) switchCommand() {
 	opts := struct {
 		SID string `cortana:"sid"`
 	}{}
 	builtins.Parse(&opts)
 
-	builtins.sess = nil
-	s.mm.messages = nil // clear the messages
-	s.history = history{}
-	s.open(opts.SID)
-	builtins.sess = s
+	if opts.SID == "" {
+		builtins.Usage()
+		return
+	}
+
+	if _, err := os.Stat(path.Join(s.dir, opts.SID)); err != nil {
+		fmt.Println(red.Render(err.Error()))
+		return
+	}
+
+	s.switchSession(opts.SID)
+}
+
+func (s *session) removeCommand() {
+	opts := struct {
+		SID string `cortana:"sid"`
+	}{}
+	builtins.Parse(&opts)
+
+	if opts.SID == "" {
+		builtins.Usage()
+		return
+	}
+	if err := s.remove(opts.SID); err != nil {
+		fmt.Println(red.Render(err.Error()))
+	}
+}
+
+func (s *session) new() {
+	opts := struct {
+		SID string `cortana:"sid"`
+	}{}
+	builtins.Parse(&opts)
+
+	if opts.SID != "" {
+		if _, err := os.Stat(path.Join(s.dir, opts.SID)); err == nil {
+			fmt.Println(red.Render("session \"" + opts.SID + "\" exist"))
+			return
+		}
+	}
+
+	s.switchSession(opts.SID)
+	fmt.Println(blue.Render("session " + s.sid + " created"))
 }
 
 func (s *session) registerCommands() {
+	builtins.AddCommand(":session new", s.new, "create a new session")
+	builtins.AddCommand(":session remove", s.removeCommand, "delete a session")
 	builtins.AddCommand(":session list", s.list, "list sessions")
 	builtins.AddCommand(":session switch", s.switchCommand, "switch a session")
 	s.mm.registerMessageCommands()

@@ -254,17 +254,14 @@ func chat() {
 		return nil
 	}
 
-	if opts.Text == "" && opts.Filename == "" {
-		opts.Interactive = true
-	}
-
 	if opts.Text != "" || opts.System != "" {
 		if err := ask(); err != nil {
 			fmt.Println(red.Render(err.Error()))
 		}
-		if !opts.Interactive {
-			return
-		}
+	}
+
+	if !opts.Interactive {
+		return
 	}
 
 	talk := func(text string) {
