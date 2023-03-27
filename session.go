@@ -117,6 +117,37 @@ func (s *session) replay(records []*record) {
 	}
 }
 
+func (s *session) list() {
+	entries, err := os.ReadDir(s.dir)
+	if err != nil {
+		fmt.Println(red.Render(err.Error()))
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "chat-") {
+			if entry.Name() == s.sid {
+				fmt.Print(blue.Render("* "))
+			} else {
+				fmt.Print("  ")
+			}
+			fmt.Println(entry.Name())
+		}
+	}
+}
+
+func (s *session) loadCommand() {
+	opts := struct {
+		SID string `cortana:"sid"`
+	}{}
+	builtins.Parse(&opts)
+
+	s.mm.messages = nil
+	s.history = history{}
+	s.sid = opts.SID
+	s.load()
+}
+
 func (s *session) registerCommands() {
+	builtins.AddCommand(":session list", s.list, "list sessions")
+	builtins.AddCommand(":session load", s.loadCommand, "load a session")
 	s.mm.registerMessageCommands()
 }
