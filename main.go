@@ -64,6 +64,9 @@ func chat() {
 	}{}
 	cortana.Parse(&opts)
 	opts.Interactive = !opts.NonInteractive
+	if !opts.Stdin {
+		opts.Stdin = opts.Filename == "--"
+	}
 
 	verbose := func(s string) {
 		if opts.Verbose {
@@ -129,16 +132,17 @@ func chat() {
 	if opts.Text != "" {
 		sess.append(&Message{Role: User, Content: opts.Text})
 	}
-	if opts.Filename != "" || opts.Stdin {
-		var content []byte
-		var err error
-		if opts.Filename == "--" || opts.Stdin {
-			verbose(blue.Render("read from stdin"))
-			content, err = io.ReadAll(os.Stdin)
-			if err != nil {
-				log.Fatal("read stdin failed")
-			}
-		} else if strings.HasPrefix(opts.Filename, "http") {
+
+	var content []byte
+	var err error
+	if opts.Stdin {
+		verbose(blue.Render("read from stdin"))
+		content, err = io.ReadAll(os.Stdin)
+		if err != nil {
+			log.Fatal("read stdin failed")
+		}
+	} else if opts.Filename != "" {
+		if strings.HasPrefix(opts.Filename, "http") {
 			verbose(blue.Render("fetch url: " + opts.Filename))
 			resp, err := http.Get(opts.Filename)
 			if err != nil {
@@ -157,8 +161,8 @@ func chat() {
 				log.Fatal("read file failed", err)
 			}
 		}
-		sess.append(&Message{Role: User, Content: string(content)})
 	}
+	sess.append(&Message{Role: User, Content: string(content)})
 
 	ask := func() error {
 		verbose(blue.Render(fmt.Sprintf("send messages: %d", len(sess.messages()))))
@@ -254,7 +258,7 @@ func chat() {
 		return nil
 	}
 
-	if opts.Text != "" || opts.System != "" {
+	if opts.Text != "" || opts.System != "" || opts.Stdin || opts.Filename != "" {
 		if err := ask(); err != nil {
 			fmt.Println(red.Render(err.Error()))
 		}
