@@ -90,29 +90,14 @@ func chat() {
 	}
 	c.RegisterBuiltinCommands()
 
-	var messages []*Message
 	mm := &messageManager{}
-	// Register messageManager commands
-	builtins.AddCommand(":messages", func() {
-		mm.display(messages)
-	}, "list messages")
-	builtins.AddCommand(":messages delete", func() {
-		messages = mm.delete(messages)
-	}, "delete messages")
-	builtins.AddCommand(":messages shrink", func() {
-		messages = mm.shrink(messages)
-	}, "shrink messages")
-	builtins.AddCommand(":messages show", func() {
-		mm.show(messages)
-	}, "show certain messages")
-	builtins.Alias(":messages reset", ":messages shrink 0:0")
-	builtins.Alias(":reset", ":messages reset")
+	mm.registerMessageCommands()
 
 	if opts.System != "" {
-		messages = append(messages, &Message{Role: System, Content: opts.System})
+		mm.append(&Message{Role: System, Content: opts.System})
 	}
 	if opts.Text != "" {
-		messages = append(messages, &Message{Role: User, Content: opts.Text})
+		mm.append(&Message{Role: User, Content: opts.Text})
 	}
 	if opts.Filename != "" || opts.Stdin {
 		var content []byte
@@ -142,11 +127,11 @@ func chat() {
 				log.Fatal("read file failed", err)
 			}
 		}
-		messages = append(messages, &Message{Role: User, Content: string(content)})
+		mm.append(&Message{Role: User, Content: string(content)})
 	}
 
 	ask := func() error {
-		verbose(blue.Render(fmt.Sprintf("send messages: %d", len(messages))))
+		verbose(blue.Render(fmt.Sprintf("send messages: %d", len(mm.messages))))
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
@@ -154,7 +139,7 @@ func chat() {
 		retry:
 			s, err := tui.Display[tui.Model[chan *AnswerChunk], chan *AnswerChunk](ctx,
 				tui.NewSpinnerModel("", func() (chan *AnswerChunk, error) {
-					return c.stream(ctx, opts.APIKey, messages)
+					return c.stream(ctx, opts.APIKey, mm.messages)
 				}))
 			if err != nil {
 				return err
@@ -173,24 +158,27 @@ func chat() {
 				return event.Choices[0].Delta.Content, nil
 			}))
 			if err != nil {
-				if strings.Contains(err.Error(), "context_length_exceeded") && len(messages) > 1 {
+				if strings.Contains(err.Error(), "context_length_exceeded") && len(mm.messages) > 1 {
 					if !opts.DisableAutoShrink {
-						var n int
-						n, messages = mm.autoShrink(messages)
+						n := mm.autoShrink()
 						if n > 0 {
-							if n == 1 {
-								fmt.Println(blue.Render(fmt.Sprintf("%d message shrinked because of tokens limitation", n)))
-							} else {
-								fmt.Println(blue.Render(fmt.Sprintf("%d messages shrinked because of tokens limitation", n)))
-							}
+							fmt.Println(blue.Render(fmt.Sprintf(
+								"%d message%s shrinked because of tokens limitation", n,
+								func() string {
+									if n > 1 {
+										return "s"
+									}
+									return ""
+								}())))
+							goto retry
 						}
-						goto retry
+					} else {
+						err = fmt.Errorf("%w\n\nUse `:messages shrink <expr>` to reduce the tokens", err)
 					}
-					err = fmt.Errorf("%w\n\nUse `:messages shrink <expr>` to reduce the tokens", err)
 				}
 				return err
 			}
-			messages = append(messages, &Message{Role: Assistant, Content: content})
+			mm.append(&Message{Role: Assistant, Content: content})
 			return nil
 		}
 		var ans *Answer
@@ -198,10 +186,10 @@ func chat() {
 		if term.IsTerminal(int(os.Stdout.Fd())) {
 			ans, err = tui.Display[tui.Model[*Answer], *Answer](ctx,
 				tui.NewSpinnerModel("waiting response...", func() (*Answer, error) {
-					return c.ask(ctx, opts.APIKey, messages)
+					return c.ask(ctx, opts.APIKey, mm.messages)
 				}))
 		} else {
-			ans, err = c.ask(ctx, opts.APIKey, messages)
+			ans, err = c.ask(ctx, opts.APIKey, mm.messages)
 		}
 		if err != nil {
 			return err
@@ -225,7 +213,7 @@ func chat() {
 			out.WriteString(content)
 			out.WriteByte('\n')
 
-			messages = append(messages, choice.Message)
+			mm.append(choice.Message)
 		}
 		tui.Display[tui.Model[string], string](ctx, tui.NewMarkdownModel(out.String()))
 
@@ -240,7 +228,7 @@ func chat() {
 		opts.Interactive = true
 	}
 
-	if len(messages) > 0 {
+	if len(mm.messages) > 0 {
 		if err := ask(); err != nil {
 			fmt.Println(red.Render(err.Error()))
 		}
@@ -250,12 +238,6 @@ func chat() {
 	}
 
 	talk := func(text string) {
-		// update to ChatGPT client
-		// TODO: use a more proper way
-		defer func() {
-			c.messages = messages
-		}()
-
 		var err error
 		text = strings.TrimSpace(text)
 		if text == "" {
@@ -270,7 +252,7 @@ func chat() {
 				return
 			}
 			fmt.Println(out)
-			messages = append(messages, &Message{Role: User, Content: out})
+			mm.append(&Message{Role: User, Content: out})
 			return
 		}
 		// run a builtin command
@@ -296,13 +278,13 @@ func chat() {
 
 		// avoid adding a dupicated input text when an error occurred for the
 		// last text
-		if l := len(messages); l > 0 {
-			last := messages[l-1].Content
+		if l := len(mm.messages); l > 0 {
+			last := mm.messages[l-1].Content
 			if err == nil || last != text {
-				messages = append(messages, &Message{Role: User, Content: text})
+				mm.append(&Message{Role: User, Content: text})
 			}
 		} else {
-			messages = append(messages, &Message{Role: User, Content: text})
+			mm.append(&Message{Role: User, Content: text})
 		}
 
 		err = ask()

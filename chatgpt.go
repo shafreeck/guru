@@ -93,8 +93,7 @@ type ChatGPTClient struct {
 	opts ChatGPTOptions
 	cli  *http.Client
 
-	history  []*Answer
-	messages []*Message
+	history []*Answer
 }
 
 func (c *ChatGPTClient) ask(ctx context.Context, apiKey string, messages []*Message) (*Answer, error) {
