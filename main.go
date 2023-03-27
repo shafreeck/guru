@@ -147,6 +147,9 @@ func chat() {
 
 	ask := func() error {
 		verbose(blue.Render(fmt.Sprintf("send messages: %d", len(messages))))
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
 		if opts.ChatGPTOptions.Stream {
 		retry:
 			s, err := tui.Display[tui.Model[chan *AnswerChunk], chan *AnswerChunk](ctx,
