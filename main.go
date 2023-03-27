@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"strings"
 	"time"
 	"unicode"
@@ -21,6 +22,10 @@ import (
 	"golang.org/x/net/proxy"
 	"golang.org/x/term"
 )
+
+var red = lipgloss.NewStyle().Foreground(lipgloss.Color("#e61919"))
+var blue = lipgloss.NewStyle().Foreground(lipgloss.Color("#2da9d2"))
+var green = lipgloss.NewStyle().Foreground(lipgloss.Color("#28bd28"))
 
 func completer(d prompt.Document) []prompt.Suggest {
 	if d.LastKeyStroke() != prompt.Tab {
@@ -53,20 +58,46 @@ func chat() {
 		Stdin             bool          `cortana:"--stdin, -, false, read from stdin, works as '-f --'"`
 		NonInteractive    bool          `cortana:"--non-interactive, -n, false, chat in none interactive mode"`
 		DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded"`
+		SessionDir        string        `cortana:"--session-dir, -, ~/.guru/session, the session directory"`
+		SessionID         string        `cortana:"--session-id, -, , the session id"`
 		Text              string
 	}{}
 	cortana.Parse(&opts)
 	opts.Interactive = !opts.NonInteractive
-
-	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#e61919"))
-	blue := lipgloss.NewStyle().Foreground(lipgloss.Color("#2da9d2"))
-	green := lipgloss.NewStyle().Foreground(lipgloss.Color("#28bd28"))
 
 	verbose := func(s string) {
 		if opts.Verbose {
 			fmt.Println(s)
 		}
 	}
+
+	// create the session directory if necessary
+	if opts.SessionDir == "" {
+		opts.SessionDir = "./"
+	}
+	if opts.SessionDir[0] == '~' {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatal(err)
+		}
+		opts.SessionDir = path.Join(home, opts.SessionDir[1:])
+	}
+
+	if _, err := os.Stat(opts.SessionDir); err != nil {
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(opts.SessionDir, 0755); err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			log.Fatal(err)
+		}
+	}
+	sess := newSession(opts.SessionDir)
+	sess.registerCommands()
+	if err := sess.open(opts.SessionID); err != nil {
+		log.Fatal(err)
+	}
+	defer sess.close()
 
 	ctx := context.Background()
 	cli := &http.Client{Timeout: opts.Timeout}
@@ -90,14 +121,11 @@ func chat() {
 	}
 	c.RegisterBuiltinCommands()
 
-	mm := &messageManager{}
-	mm.registerMessageCommands()
-
 	if opts.System != "" {
-		mm.append(&Message{Role: System, Content: opts.System})
+		sess.append(&Message{Role: System, Content: opts.System})
 	}
 	if opts.Text != "" {
-		mm.append(&Message{Role: User, Content: opts.Text})
+		sess.append(&Message{Role: User, Content: opts.Text})
 	}
 	if opts.Filename != "" || opts.Stdin {
 		var content []byte
@@ -127,11 +155,11 @@ func chat() {
 				log.Fatal("read file failed", err)
 			}
 		}
-		mm.append(&Message{Role: User, Content: string(content)})
+		sess.append(&Message{Role: User, Content: string(content)})
 	}
 
 	ask := func() error {
-		verbose(blue.Render(fmt.Sprintf("send messages: %d", len(mm.messages))))
+		verbose(blue.Render(fmt.Sprintf("send messages: %d", len(sess.messages()))))
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
@@ -139,7 +167,7 @@ func chat() {
 		retry:
 			s, err := tui.Display[tui.Model[chan *AnswerChunk], chan *AnswerChunk](ctx,
 				tui.NewSpinnerModel("", func() (chan *AnswerChunk, error) {
-					return c.stream(ctx, opts.APIKey, mm.messages)
+					return c.stream(ctx, opts.APIKey, sess.messages())
 				}))
 			if err != nil {
 				return err
@@ -158,9 +186,9 @@ func chat() {
 				return event.Choices[0].Delta.Content, nil
 			}))
 			if err != nil {
-				if strings.Contains(err.Error(), "context_length_exceeded") && len(mm.messages) > 1 {
+				if strings.Contains(err.Error(), "context_length_exceeded") && len(sess.messages()) > 1 {
 					if !opts.DisableAutoShrink {
-						n := mm.autoShrink()
+						n := sess.mm.autoShrink()
 						if n > 0 {
 							fmt.Println(blue.Render(fmt.Sprintf(
 								"%d message%s shrinked because of tokens limitation", n,
@@ -178,7 +206,7 @@ func chat() {
 				}
 				return err
 			}
-			mm.append(&Message{Role: Assistant, Content: content})
+			sess.append(&Message{Role: Assistant, Content: content})
 			return nil
 		}
 		var ans *Answer
@@ -186,10 +214,10 @@ func chat() {
 		if term.IsTerminal(int(os.Stdout.Fd())) {
 			ans, err = tui.Display[tui.Model[*Answer], *Answer](ctx,
 				tui.NewSpinnerModel("waiting response...", func() (*Answer, error) {
-					return c.ask(ctx, opts.APIKey, mm.messages)
+					return c.ask(ctx, opts.APIKey, sess.messages())
 				}))
 		} else {
-			ans, err = c.ask(ctx, opts.APIKey, mm.messages)
+			ans, err = c.ask(ctx, opts.APIKey, sess.messages())
 		}
 		if err != nil {
 			return err
@@ -213,7 +241,7 @@ func chat() {
 			out.WriteString(content)
 			out.WriteByte('\n')
 
-			mm.append(choice.Message)
+			sess.append(choice.Message)
 		}
 		tui.Display[tui.Model[string], string](ctx, tui.NewMarkdownModel(out.String()))
 
@@ -228,7 +256,7 @@ func chat() {
 		opts.Interactive = true
 	}
 
-	if len(mm.messages) > 0 {
+	if opts.Text != "" || opts.System != "" {
 		if err := ask(); err != nil {
 			fmt.Println(red.Render(err.Error()))
 		}
@@ -252,7 +280,7 @@ func chat() {
 				return
 			}
 			fmt.Println(out)
-			mm.append(&Message{Role: User, Content: out})
+			sess.append(&Message{Role: User, Content: out})
 			return
 		}
 		// run a builtin command
@@ -270,7 +298,7 @@ func chat() {
 					return false
 				}
 			}())
-			text = strings.TrimSpace(builtins.Launch(ctx, args...))
+			text = strings.TrimSpace(builtins.Launch(ctx, args))
 			if text == "" {
 				return
 			}
@@ -278,13 +306,13 @@ func chat() {
 
 		// avoid adding a dupicated input text when an error occurred for the
 		// last text
-		if l := len(mm.messages); l > 0 {
-			last := mm.messages[l-1].Content
+		if l := len(sess.messages()); l > 0 {
+			last := sess.messages()[l-1].Content
 			if err == nil || last != text {
-				mm.append(&Message{Role: User, Content: text})
+				sess.append(&Message{Role: User, Content: text})
 			}
 		} else {
-			mm.append(&Message{Role: User, Content: text})
+			sess.append(&Message{Role: User, Content: text})
 		}
 
 		err = ask()

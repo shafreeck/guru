@@ -9,6 +9,7 @@ require (
 	github.com/charmbracelet/bubbletea v0.23.2
 	github.com/charmbracelet/glamour v0.6.0
 	github.com/charmbracelet/lipgloss v0.7.1
+	github.com/google/uuid v1.3.0
 	github.com/muesli/reflow v0.3.0
 	github.com/shafreeck/cortana v0.0.0-20230326135430-8a3a0a8d128e
 	github.com/yuin/goldmark v1.5.2

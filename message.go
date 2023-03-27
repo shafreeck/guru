@@ -143,13 +143,26 @@ func (m *messageManager) show() {
 	tui.Display[tui.Model[string], string](context.Background(), tui.NewMarkdownModel(out.String()))
 }
 
+func (m *messageManager) appendCommand() {
+	opts := struct {
+		Role string `cortana:"--role, -r, user, append message with certain role"`
+		Text string `cortana:"text"`
+	}{}
+	builtins.Parse(&opts)
+	if opts.Text != "" {
+		m.append(&Message{Role: ChatRole(opts.Role), Content: opts.Text})
+	}
+}
+
 func (m *messageManager) registerMessageCommands() {
 	builtins.AddCommand(":message list", m.display, "list messages")
 	builtins.AddCommand(":message delete", m.delete, "delete messages")
 	builtins.AddCommand(":message shrink", m.shrink, "shrink messages")
 	builtins.AddCommand(":message show", m.show, "show certain messages")
+	builtins.AddCommand(":message append", m.appendCommand, "append a message")
 	builtins.Alias(":list", ":message list")
 	builtins.Alias(":show", ":message show")
 	builtins.Alias(":reset", ":message reset")
+	builtins.Alias(":append", ":message append")
 
 }

@@ -21,7 +21,7 @@ type builtinCommand struct {
 	text string
 }
 
-func (c *builtinCommand) Launch(ctx context.Context, args ...string) string {
+func (c *builtinCommand) Launch(ctx context.Context, args []string) string {
 	cmd := c.SearchCommand(args)
 	if cmd == nil {
 		usage := lipgloss.NewStyle().Foreground(
