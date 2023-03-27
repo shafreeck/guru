@@ -71,6 +71,10 @@ func (s *session) open(sid string) error {
 	return nil
 }
 func (s *session) close() {
+	// nothing saved, delete the session
+	if len(s.history.records) == 0 {
+		os.Remove(path.Join(s.dir, s.sid))
+	}
 	if s.history.w != nil {
 		s.history.w.Close()
 	}
