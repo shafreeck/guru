@@ -94,7 +94,7 @@ func (s *session) messages() []*Message {
 
 func (s *session) load() error {
 	f, err := os.Open(path.Join(s.dir, s.sid))
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	scanner := bufio.NewScanner(f)
