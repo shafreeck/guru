@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -17,9 +18,11 @@ type StreamModel[E any, S chan E] struct {
 	spinner.Model
 	err      error
 	out      *bytes.Buffer
+	text     string // the text to draw by view
 	stream   S
 	renderer MarkdownRender
 	onEvent  func(event E) (string, error)
+	height   int // the window height
 }
 
 func NewStreamModel[E any, S chan E](stream S, onEvent func(event E) (string, error)) *StreamModel[E, S] {
@@ -46,36 +49,49 @@ func (s *StreamModel[E, S]) Init() tea.Cmd {
 	return tea.Batch(s.Model.Tick, s.drainEvent)
 }
 
-func (s *StreamModel[E, S]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (s *StreamModel[E, S]) Update(msg tea.Msg) (m tea.Model, cmd tea.Cmd) {
+	quiting := false
+	defer func() {
+		if quiting {
+			cmd = tea.Sequence(s.scrollLines(s.text), tea.Quit)
+		}
+	}()
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
 			s.err = errors.New("Ctl+C interrupted")
+			quiting = true
 			return s, tea.Quit
 		}
+	case tea.WindowSizeMsg:
+		s.height = msg.Height
 	case errMsg:
 		s.err = msg
-		s.out.WriteByte('\n')
+		quiting = true
 		return s, tea.Quit
 	case eventMsg[E]:
 		if text, err := s.onEvent(msg.e); err != nil {
 			s.err = err
-			s.out.WriteByte('\n')
+			quiting = true
 			return s, tea.Quit
 		} else {
 			s.out.WriteString(text)
 		}
+		// this is a work around to wrap words for Chinese
+		// TODO: find a better way
+		data, err := s.renderer.Render(WrapWord(s.out.Bytes(), 110))
+		if err != nil {
+			s.text = err.Error()
+		}
+		s.text = string(data)
 		return s, s.drainEvent
 	case doneMsg[E]:
-		s.out.WriteByte('\n')
+		quiting = true
 		return s, tea.Quit
-	default:
-		var cmd tea.Cmd
-		s.Model, cmd = s.Model.Update(msg)
-		return s, cmd
 	}
-	return s, nil
+	s.Model, cmd = s.Model.Update(msg)
+	return s, cmd
 }
 
 func WrapWord(text []byte, width int) []byte {
@@ -107,14 +123,18 @@ func WrapWord(text []byte, width int) []byte {
 	return out.Bytes()
 }
 
-func (s *StreamModel[E, S]) View() string {
-	// this is a work around to wrap words for Chinese
-	// TODO: find a better way
-	text, err := s.renderer.Render(WrapWord(s.out.Bytes(), 110))
-	if err != nil {
-		return err.Error()
+// send back the scrolled lines
+func (s *StreamModel[E, S]) scrollLines(text string) tea.Cmd {
+	lines := strings.Split(text, "\n")
+	if n := len(lines) - s.height; s.height > 0 && n > 0 {
+		lines = lines[:n]
+		return tea.Printf("%s", strings.Join(lines, "\n"))
 	}
-	return fmt.Sprintf("%s %s", string(text), s.Model.View())
+	return nil
+}
+
+func (s *StreamModel[E, S]) View() string {
+	return fmt.Sprintf("%s %s", s.text, s.Model.View())
 }
 
 func (s *StreamModel[E, S]) Value() string {
