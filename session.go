@@ -8,10 +8,12 @@ import (
 	"io"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shafreeck/cortana"
 	"github.com/shafreeck/guru/tui"
 )
 
@@ -142,11 +144,11 @@ func (s *session) list() {
 	if err != nil {
 		fmt.Println(red.Render(err.Error()))
 	}
-	for _, entry := range entries {
+	for i, entry := range entries {
 		if entry.Name() == s.sid {
-			fmt.Print(blue.Render("* "))
+			fmt.Print(blue.Render("  *  "))
 		} else {
-			fmt.Print("  ")
+			fmt.Printf("%3d. ", i)
 		}
 		fmt.Println(entry.Name())
 	}
@@ -233,10 +235,72 @@ func (s *session) new() {
 	fmt.Println(blue.Render("session " + s.sid + " created"))
 }
 
+func (s *session) shrink() {
+	opts := struct {
+		Expr string `cortana:"expr"`
+	}{}
+	builtins.Parse(&opts, cortana.IgnoreUnknownArgs())
+
+	var begin, end int
+	var err error
+
+	var ids []string
+	var removes []string
+
+	entries, err := os.ReadDir(s.dir)
+	if err != nil {
+		fmt.Println(red.Render(err.Error()))
+	}
+	for _, entry := range entries {
+		ids = append(ids, entry.Name())
+	}
+
+	size := len(ids)
+
+	parts := strings.Split(opts.Expr, ":")
+
+	if v := parts[0]; v != "" {
+		begin, err = strconv.Atoi(parts[0])
+		if err != nil {
+			fmt.Println(err)
+		}
+		if begin >= size {
+			return
+		}
+	}
+	if len(parts) == 1 {
+		removes = ids[:begin]
+	} else {
+		if v := parts[1]; v != "" {
+			end, err = strconv.Atoi(parts[1])
+			if err != nil {
+				fmt.Println(err)
+			}
+		} else {
+			end = size
+		}
+		if end > size {
+			end = size
+		}
+		removes = append(ids[0:begin], ids[end:]...)
+	}
+
+	for _, sid := range removes {
+		if sid == s.sid {
+			continue
+		}
+		s.remove(sid)
+		fmt.Println(blue.Render(sid + " removed"))
+	}
+}
+
 func (s *session) registerCommands() {
 	builtins.AddCommand(":session new", s.new, "create a new session")
 	builtins.AddCommand(":session remove", s.removeCommand, "delete a session")
+	builtins.AddCommand(":session shrink", s.shrink, "shrink sessions")
 	builtins.AddCommand(":session list", s.list, "list sessions")
 	builtins.AddCommand(":session switch", s.switchCommand, "switch a session")
+
+	builtins.Alias(":session clear", ":session shrink 0:0")
 	s.mm.registerMessageCommands()
 }
