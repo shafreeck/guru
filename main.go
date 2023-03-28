@@ -326,6 +326,15 @@ func chat() {
 		}
 	}
 
+	// restore the terminal state after exit
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		oldState, err := term.GetState(int(os.Stdin.Fd()))
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer term.Restore(int(os.Stdin.Fd()), oldState)
+	}
+
 	prompt.New(talk, completer,
 		prompt.OptionPrefix("ChatGPT > "),
 		prompt.OptionPrefixTextColor(prompt.Green),
