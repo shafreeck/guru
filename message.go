@@ -162,7 +162,7 @@ func (m *messageManager) registerMessageCommands() {
 	builtins.AddCommand(":message append", m.appendCommand, "append a message")
 	builtins.Alias(":list", ":message list")
 	builtins.Alias(":show", ":message show")
-	builtins.Alias(":reset", ":message reset")
+	builtins.Alias(":reset", ":message shrink 0:0")
 	builtins.Alias(":append", ":message append")
 
 }
