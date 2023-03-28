@@ -162,7 +162,9 @@ func chat() {
 			}
 		}
 	}
-	sess.append(&Message{Role: User, Content: string(content)})
+	if len(content) > 0 {
+		sess.append(&Message{Role: User, Content: string(content)})
+	}
 
 	ask := func() error {
 		verbose(blue.Render(fmt.Sprintf("send messages: %d", len(sess.messages()))))
