@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/c-bata/go-prompt"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/shafreeck/cortana"
 	"github.com/shafreeck/guru/tui"
@@ -55,24 +54,18 @@ func init() {
 	builtins.AddCommand(":read", builtin(read), "read from stdin with a textarea")
 }
 
-func builtinCompleter(d prompt.Document) []prompt.Suggest {
-	prefix := strings.TrimLeft(d.CurrentLineBeforeCursor(), " ")
+func builtinCompleter(line []rune, pos int) ([][]rune, int) {
+	prefix := string(line)
 	cmds := builtins.Complete(prefix)
-	var suggests []prompt.Suggest
+	var suggests [][]rune
 	for _, cmd := range cmds {
 		path := cmd.Path
-		fields := strings.Fields(prefix)
-		if strings.HasSuffix(prefix, " ") || len(fields) > 1 {
-			path = strings.TrimSpace(strings.TrimPrefix(cmd.Path, strings.TrimSpace(fields[0])))
-		}
 		if path == "" {
 			continue
 		}
-		suggests = append(suggests, prompt.Suggest{
-			Text: path,
-		})
+		suggests = append(suggests, []rune(strings.TrimPrefix(path, prefix)))
 	}
-	return suggests
+	return suggests, pos
 }
 
 func exit() {

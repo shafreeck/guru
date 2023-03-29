@@ -5,8 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-
-	"github.com/c-bata/go-prompt"
 )
 
 // run sys command in the interactive mode
@@ -20,49 +18,46 @@ func runCommand(line string) (string, error) {
 	return string(output), err
 }
 
-func cmdCompleter(d prompt.Document) []prompt.Suggest {
-	if d.LastKeyStroke() != prompt.Tab {
-		return nil
-	}
-
-	line := strings.TrimLeft(d.CurrentLineBeforeCursor(), " ")
+func cmdCompleter(prefix []rune, pos int) ([][]rune, int) {
+	line := string(prefix)
+	line = strings.TrimLeft(line, " ")
 	if line == "" {
-		return nil
+		return nil, 0
 	}
 
 	// not a system command
 	if line[0] != '$' {
-		return nil
+		return nil, 0
 	}
 
 	line = strings.TrimLeft(line[1:], " ")
-	var suggests []prompt.Suggest
+
+	var suggests [][]rune
+	fields := strings.Fields(line)
 	// lookup the file in current path
-	if strings.HasSuffix(line, " ") {
+	if strings.HasSuffix(line, " ") || len(fields) > 1 {
 		var prefix string
-		fields := strings.Fields(line)
 		if len(fields) > 1 {
 			prefix = fields[len(fields)-1]
 		}
 		entries, _ := os.ReadDir("./")
 		for _, entry := range entries {
 			if strings.HasPrefix(entry.Name(), prefix) {
-				suggests = append(suggests, prompt.Suggest{Text: entry.Name()})
+				suggests = append(suggests, []rune(strings.TrimPrefix(entry.Name(), prefix)))
 			}
 		}
-		return suggests
+		return suggests, len(prefix)
 	}
 
 	// lookup the commands in $PATH
-	// TODO build an index for the lookup
 	paths := strings.Split(os.Getenv("PATH"), ":")
 	for _, path := range paths {
 		entries, _ := os.ReadDir(path)
 		for _, entry := range entries {
 			if strings.HasPrefix(entry.Name(), line) {
-				suggests = append(suggests, prompt.Suggest{Text: entry.Name()})
+				suggests = append(suggests, []rune(strings.TrimPrefix(entry.Name(), line)))
 			}
 		}
 	}
-	return suggests
+	return suggests, pos - 1 // remove the $
 }

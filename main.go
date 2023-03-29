@@ -15,7 +15,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/c-bata/go-prompt"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/shafreeck/cortana"
 	"github.com/shafreeck/guru/tui"
@@ -26,24 +25,6 @@ import (
 var red = lipgloss.NewStyle().Foreground(lipgloss.Color("#e61919"))
 var blue = lipgloss.NewStyle().Foreground(lipgloss.Color("#2da9d2"))
 var green = lipgloss.NewStyle().Foreground(lipgloss.Color("#28bd28"))
-
-func completer(d prompt.Document) []prompt.Suggest {
-	if d.LastKeyStroke() != prompt.Tab {
-		return nil
-	}
-
-	line := strings.TrimLeft(d.CurrentLineBeforeCursor(), " ")
-	if line == "" {
-		return nil
-	}
-	switch line[0] {
-	case '$':
-		return cmdCompleter(d)
-	case ':':
-		return builtinCompleter(d)
-	}
-	return nil
-}
 
 func chat() {
 	opts := struct {
@@ -326,19 +307,8 @@ func chat() {
 		}
 	}
 
-	// restore the terminal state after exit
-	if term.IsTerminal(int(os.Stdin.Fd())) {
-		oldState, err := term.GetState(int(os.Stdin.Fd()))
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer term.Restore(int(os.Stdin.Fd()), oldState)
-	}
+	repl(green.Render("ChatGPT > "), talk)
 
-	prompt.New(talk, completer,
-		prompt.OptionPrefix("ChatGPT > "),
-		prompt.OptionPrefixTextColor(prompt.Green),
-	).Run()
 }
 
 func main() {
