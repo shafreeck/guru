@@ -72,5 +72,17 @@ func (g *guruSSHServer) handle(sess ssh.Session) {
 	builtins.Use(cortana.WithStderr(sess))
 	cortana.Use(cortana.WithStdout(sess))
 	cortana.Use(cortana.WithStderr(sess))
-	cortana.Launch(sess.Command()...)
+
+	args := sess.Command()
+	if len(args) == 0 {
+		args = append(args, "chat")
+	}
+	// filter the serve self
+	if args[0] == "serve" {
+		fmt.Sprintln(sess, "serve command is not supported in the sshapp mode")
+	}
+	builtins.AddCommand(":exit", func() {
+		sess.Close()
+	}, "exit the session")
+	cortana.Launch(args...)
 }
