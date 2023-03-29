@@ -90,7 +90,7 @@ func (s *session) close() {
 func (s *session) append(m *Message) {
 	s.mm.append(m)
 	if err := s.history.append(":append", m); err != nil {
-		fmt.Println(red.Render(err.Error()))
+		fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
 	}
 }
 
@@ -122,17 +122,17 @@ func (s *session) load() error {
 
 func (s *session) replay(records []*record) {
 	render := &tui.JSONRenderer{}
-	fmt.Println(blue.Render("replay session:", s.sid))
+	fmt.Fprintln(tui.Stdout, blue.Render("replay session:", s.sid))
 	for _, r := range records {
 		args := strings.Fields(r.Op)
-		fmt.Print(blue.Render(r.Op), " ")
+		fmt.Fprint(tui.Stdout, blue.Render(r.Op), " ")
 		if r.Msg != nil {
 			data, _ := json.Marshal(r.Msg)
 			data, _ = render.Render(data)
-			fmt.Println(string(data))
+			fmt.Fprintln(tui.Stdout, string(data))
 			args = append(args, "--role", string(r.Msg.Role), r.Msg.Content)
 		} else {
-			fmt.Println()
+			fmt.Fprintln(tui.Stdout)
 		}
 		builtins.Launch(context.Background(), args)
 	}
@@ -141,15 +141,15 @@ func (s *session) replay(records []*record) {
 func (s *session) list() {
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
-		fmt.Println(red.Render(err.Error()))
+		fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
 	}
 	for i, entry := range entries {
 		if entry.Name() == s.sid {
-			fmt.Print(blue.Render("  *  "))
+			fmt.Fprint(tui.Stdout, blue.Render("  *  "))
 		} else {
-			fmt.Printf("%3d. ", i)
+			fmt.Fprintf(tui.Stdout, "%3d. ", i)
 		}
-		fmt.Println(entry.Name())
+		fmt.Fprintln(tui.Stdout, entry.Name())
 	}
 }
 
@@ -197,7 +197,7 @@ func (s *session) switchCommand() {
 	}
 
 	if _, err := os.Stat(path.Join(s.dir, opts.SID)); err != nil {
-		fmt.Println(red.Render(err.Error()))
+		fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
 		return
 	}
 
@@ -217,7 +217,7 @@ func (s *session) removeCommand() {
 		return
 	}
 	if err := s.remove(opts.SID); err != nil {
-		fmt.Println(red.Render(err.Error()))
+		fmt.Fprintln(tui.Stdout, red.Render(err.Error()))
 	}
 }
 
@@ -231,13 +231,13 @@ func (s *session) new() {
 
 	if opts.SID != "" {
 		if _, err := os.Stat(path.Join(s.dir, opts.SID)); err == nil {
-			fmt.Println(red.Render("session \"" + opts.SID + "\" exist"))
+			fmt.Fprintln(tui.Stdout, red.Render("session \""+opts.SID+"\" exist"))
 			return
 		}
 	}
 
 	s.switchSession(opts.SID)
-	fmt.Println(blue.Render("session " + s.sid + " created"))
+	fmt.Fprintln(tui.Stdout, blue.Render("session "+s.sid+" created"))
 }
 
 func (s *session) shrink() {
@@ -257,7 +257,7 @@ func (s *session) shrink() {
 
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
-		fmt.Println(red.Render(err.Error()))
+		fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
 	}
 	for _, entry := range entries {
 		ids = append(ids, entry.Name())
@@ -270,7 +270,7 @@ func (s *session) shrink() {
 	if v := parts[0]; v != "" {
 		begin, err = strconv.Atoi(parts[0])
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
 		}
 		if begin >= size {
 			return
@@ -282,7 +282,7 @@ func (s *session) shrink() {
 		if v := parts[1]; v != "" {
 			end, err = strconv.Atoi(parts[1])
 			if err != nil {
-				fmt.Println(err)
+				fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
 			}
 		} else {
 			end = size
@@ -298,7 +298,7 @@ func (s *session) shrink() {
 			continue
 		}
 		s.remove(sid)
-		fmt.Println(blue.Render(sid + " removed"))
+		fmt.Fprintln(tui.Stdout, blue.Render(sid+" removed"))
 	}
 }
 

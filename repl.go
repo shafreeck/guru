@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/chzyer/readline"
+	"github.com/shafreeck/guru/tui"
 )
 
 type completer func(line []rune, pos int) ([][]rune, int)
@@ -27,6 +28,9 @@ func repl(prompt string, do func(text string)) error {
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       prompt,
 		AutoComplete: completer(complete),
+		Stdin:        tui.Stdin,
+		Stdout:       tui.Stdout,
+		Stderr:       tui.Stderr,
 	})
 	if err != nil {
 		return err

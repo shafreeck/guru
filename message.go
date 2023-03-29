@@ -31,13 +31,13 @@ func (m *messageManager) display() {
 	for i, msg := range m.messages {
 		data, err := json.Marshal(msg)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(tui.Stderr, err)
 		}
 		text, err := render.Render(data)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(tui.Stderr, err)
 		}
-		fmt.Println(fmt.Sprintf("%3d. ", i), string(text))
+		fmt.Fprintln(tui.Stdout, fmt.Sprintf("%3d. ", i), string(text))
 	}
 }
 func (m *messageManager) shrink() {
@@ -58,7 +58,7 @@ func (m *messageManager) shrink() {
 	if v := parts[0]; v != "" {
 		begin, err = strconv.Atoi(parts[0])
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(tui.Stderr, err)
 		}
 		if begin >= size {
 			return
@@ -71,7 +71,7 @@ func (m *messageManager) shrink() {
 	if v := parts[1]; v != "" {
 		end, err = strconv.Atoi(parts[1])
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(tui.Stderr, err)
 		}
 	} else {
 		end = size

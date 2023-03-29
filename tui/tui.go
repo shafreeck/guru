@@ -2,8 +2,16 @@ package tui
 
 import (
 	"context"
+	"io"
+	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+)
+
+var (
+	Stdin  io.ReadCloser  = os.Stdin
+	Stdout io.WriteCloser = os.Stdout
+	Stderr io.WriteCloser = os.Stderr
 )
 
 type (
@@ -23,7 +31,8 @@ type Model[T any] interface {
 }
 
 func Display[M Model[V], V any](ctx context.Context, m M) (V, error) {
-	p := tea.NewProgram(m, tea.WithContext(ctx))
+	p := tea.NewProgram(m, tea.WithContext(ctx), tea.WithInput(Stdin),
+		tea.WithOutput(Stdout))
 	done, err := p.Run()
 	res := done.(M)
 	if res.Error() != nil {

@@ -241,13 +241,13 @@ func (c *ChatGPTClient) respCommand() {
 	for _, resp := range c.history {
 		data, err := json.Marshal(resp)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
 		}
 		text, err := render.Render(data)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
 		}
-		fmt.Println(string(text))
+		fmt.Fprintln(tui.Stdout, string(text))
 	}
 }
 

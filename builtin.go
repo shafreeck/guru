@@ -27,7 +27,7 @@ func (c *builtinCommand) Launch(ctx context.Context, args []string) string {
 		usage := lipgloss.NewStyle().Foreground(
 			lipgloss.AdaptiveColor{Dark: "#79b3ec", Light: "#1d73c9"}).
 			Render(c.UsageString())
-		fmt.Println(usage)
+		fmt.Fprint(tui.Stdout, usage)
 		return ""
 	}
 	c.ctx = ctx

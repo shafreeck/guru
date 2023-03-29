@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/wish"
 	"github.com/charmbracelet/wish/logging"
 	"github.com/shafreeck/cortana"
+	"github.com/shafreeck/guru/tui"
 )
 
 func serve() {
@@ -64,5 +65,12 @@ func (g *guruSSHServer) serve() error {
 }
 
 func (g *guruSSHServer) handle(sess ssh.Session) {
+	tui.Stdin = sess
+	tui.Stdout = sess
+	tui.Stderr = sess
+	builtins.Use(cortana.WithStdout(sess))
+	builtins.Use(cortana.WithStderr(sess))
+	cortana.Use(cortana.WithStdout(sess))
+	cortana.Use(cortana.WithStderr(sess))
 	cortana.Launch(sess.Command()...)
 }
