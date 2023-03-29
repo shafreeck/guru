@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/shafreeck/cortana"
 	"github.com/shafreeck/guru/tui"
 )
 
@@ -188,7 +187,9 @@ func (s *session) switchCommand() {
 	opts := struct {
 		SID string `cortana:"sid"`
 	}{}
-	builtins.Parse(&opts)
+	if usage := builtins.Parse(&opts); usage {
+		return
+	}
 
 	if opts.SID == "" {
 		builtins.Usage()
@@ -207,7 +208,9 @@ func (s *session) removeCommand() {
 	opts := struct {
 		SID string `cortana:"sid"`
 	}{}
-	builtins.Parse(&opts)
+	if usage := builtins.Parse(&opts); usage {
+		return
+	}
 
 	if opts.SID == "" {
 		builtins.Usage()
@@ -222,7 +225,9 @@ func (s *session) new() {
 	opts := struct {
 		SID string `cortana:"sid"`
 	}{}
-	builtins.Parse(&opts)
+	if usage := builtins.Parse(&opts); usage {
+		return
+	}
 
 	if opts.SID != "" {
 		if _, err := os.Stat(path.Join(s.dir, opts.SID)); err == nil {
@@ -239,7 +244,10 @@ func (s *session) shrink() {
 	opts := struct {
 		Expr string `cortana:"expr"`
 	}{}
-	builtins.Parse(&opts, cortana.IgnoreUnknownArgs())
+
+	if usage := builtins.Parse(&opts); usage {
+		return
+	}
 
 	var begin, end int
 	var err error

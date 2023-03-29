@@ -12,7 +12,7 @@ require (
 	github.com/chzyer/readline v1.5.1
 	github.com/google/uuid v1.3.0
 	github.com/muesli/reflow v0.3.0
-	github.com/shafreeck/cortana v0.0.0-20230326135430-8a3a0a8d128e
+	github.com/shafreeck/cortana v0.0.0-20230329114619-64e81051c9cb
 	github.com/yuin/goldmark v1.5.2
 	golang.org/x/net v0.8.0
 	golang.org/x/term v0.6.0

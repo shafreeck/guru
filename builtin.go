@@ -40,13 +40,22 @@ func (c *builtinCommand) Launch(ctx context.Context, args []string) string {
 	return text
 }
 
+// Parse the args and set usgae if meet --help/-h
+func (c *builtinCommand) Parse(v interface{}) (usage bool) {
+	c.Cortana.Parse(v, cortana.OnUsage(func(usageString string) {
+		c.Usage()
+		usage = true
+	}))
+	return
+}
+
 func builtin(f func(ctx context.Context) string) func() {
 	return func() {
 		builtins.text = f(builtins.ctx)
 	}
 }
 
-var builtins = builtinCommand{Cortana: cortana.New()}
+var builtins = builtinCommand{Cortana: cortana.New(cortana.ExitOnError(false))}
 
 func init() {
 	builtins.AddCommand(":exit", exit, "exit guru")

@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/shafreeck/cortana"
 	"github.com/shafreeck/guru/tui"
 )
 
@@ -24,7 +23,9 @@ func (m *messageManager) display() {
 	opts := struct {
 		N int `cortana:"--n, -n, 0, list the first n messages"`
 	}{}
-	builtins.Parse(&opts, cortana.IgnoreUnknownArgs())
+	if usage := builtins.Parse(&opts); usage {
+		return
+	}
 
 	render := &tui.JSONRenderer{}
 	for i, msg := range m.messages {
@@ -43,7 +44,9 @@ func (m *messageManager) shrink() {
 	opts := struct {
 		Expr string `cortana:"expr"`
 	}{}
-	builtins.Parse(&opts, cortana.IgnoreUnknownArgs())
+	if usage := builtins.Parse(&opts); usage {
+		return
+	}
 
 	var begin, end int
 	var err error
@@ -83,7 +86,9 @@ func (m *messageManager) delete() {
 	opts := struct {
 		Indexes []int `cortana:"index, -"`
 	}{}
-	builtins.Parse(&opts, cortana.IgnoreUnknownArgs())
+	if usage := builtins.Parse(&opts); usage {
+		return
+	}
 
 	// TODO make Indexes as a required argument
 	if len(opts.Indexes) == 0 {
@@ -124,7 +129,10 @@ func (m *messageManager) show() {
 		Indexes []int `cortana:"index, -"`
 		Role    bool  `cortana:"--role, -r, false, show message with role"`
 	}{}
-	builtins.Parse(&opts, cortana.IgnoreUnknownArgs())
+	if usage := builtins.Parse(&opts); usage {
+		return
+	}
+
 	// TODO make Indexes as a require argument
 	if len(opts.Indexes) == 0 {
 		builtins.Usage()
@@ -148,7 +156,10 @@ func (m *messageManager) appendCommand() {
 		Role string `cortana:"--role, -r, user, append message with certain role"`
 		Text string `cortana:"text"`
 	}{}
-	builtins.Parse(&opts)
+	if usage := builtins.Parse(&opts); usage {
+		return
+	}
+
 	if opts.Text != "" {
 		m.append(&Message{Role: ChatRole(opts.Role), Content: opts.Text})
 	}
@@ -164,5 +175,4 @@ func (m *messageManager) registerMessageCommands() {
 	builtins.Alias(":show", ":message show")
 	builtins.Alias(":reset", ":message shrink 0:0")
 	builtins.Alias(":append", ":message append")
-
 }
