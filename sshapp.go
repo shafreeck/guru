@@ -12,6 +12,7 @@ import (
 
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
+	"github.com/charmbracelet/wish/activeterm"
 	"github.com/charmbracelet/wish/logging"
 	"github.com/shafreeck/cortana"
 	"github.com/shafreeck/guru/tui"
@@ -20,10 +21,11 @@ import (
 func serve() {
 	opts := struct {
 		Address string `cortana:"address, -, :2023"`
+		Auth    string `cortana:"--auth, -, ,the auth password"`
 	}{}
 	cortana.Parse(&opts)
 
-	g := newGuruSSHServer(opts.Address)
+	g := newGuruSSHServer(opts.Address, opts.Auth)
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
@@ -45,17 +47,27 @@ func serve() {
 type guruSSHServer struct {
 	s       *ssh.Server
 	cmd     *cortana.Cortana
+	auth    string
 	address string
 }
 
-func newGuruSSHServer(address string) *guruSSHServer {
-	return &guruSSHServer{cmd: cortana.New(), address: address}
+func newGuruSSHServer(address, auth string) *guruSSHServer {
+	return &guruSSHServer{cmd: cortana.New(), address: address, auth: auth}
 }
 
 func (g *guruSSHServer) serve() error {
-	s, err := wish.NewServer(wish.WithAddress(g.address), wish.WithMiddleware(func(h ssh.Handler) ssh.Handler {
-		return g.handle
-	}, logging.Middleware()))
+	s, err := wish.NewServer(wish.WithAddress(g.address),
+		wish.WithPasswordAuth(func(ctx ssh.Context, password string) bool {
+			// no auth
+			if g.auth == "" {
+				return true
+			}
+			return password == g.auth
+		}),
+		wish.WithMiddleware(activeterm.Middleware(),
+			func(h ssh.Handler) ssh.Handler {
+				return g.handle
+			}, logging.Middleware()))
 
 	if err != nil {
 		log.Fatal(err)
