@@ -56,19 +56,23 @@ func newGuruSSHServer(address, auth string) *guruSSHServer {
 }
 
 func (g *guruSSHServer) serve() error {
-	s, err := wish.NewServer(wish.WithAddress(g.address),
-		wish.WithPasswordAuth(func(ctx ssh.Context, password string) bool {
+	var opts []ssh.Option
+	opts = append(opts, wish.WithAddress(g.address))
+	if g.auth != "" {
+		opts = append(opts, wish.WithPasswordAuth(func(ctx ssh.Context, password string) bool {
 			// no auth
 			if g.auth == "" {
 				return true
 			}
 			return password == g.auth
-		}),
-		wish.WithMiddleware(activeterm.Middleware(),
-			func(h ssh.Handler) ssh.Handler {
-				return g.handle
-			}, logging.Middleware()))
+		}))
+	}
+	opts = append(opts, wish.WithMiddleware(activeterm.Middleware(),
+		func(h ssh.Handler) ssh.Handler {
+			return g.handle
+		}, logging.Middleware()))
 
+	s, err := wish.NewServer(opts...)
 	if err != nil {
 		log.Fatal(err)
 	}
