@@ -69,7 +69,7 @@ func repl(prompt *livePrompt, do func(text string)) error {
 			break
 		}
 		// update the prompt for special command: < and >
-		if len(line) > 0 {
+		if len(line) > 0 || (len(line) > 1 && line[1] == ' ') {
 			c := line[0]
 			switch c {
 			case '>':
