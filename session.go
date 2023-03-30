@@ -17,22 +17,30 @@ import (
 )
 
 type record struct {
-	Op  string
-	Msg *Message
+	Op     string
+	Msg    *Message
+	Offset int64
 }
 
 type history struct {
+	offset  int64 // the offset of the write cursor
 	w       io.ReadWriteCloser
 	records []*record
 }
 
+func (h *history) Write(data []byte) (n int, err error) {
+	n, err = h.w.Write(data)
+	h.offset += int64(n)
+	return n, err
+}
+
 func (h *history) append(op string, v *Message) error {
-	r := &record{Op: op, Msg: v}
+	r := &record{Op: op, Msg: v, Offset: h.offset}
 	data, err := json.Marshal(r)
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintln(h.w, string(data))
+	_, err = fmt.Fprintln(h, string(data))
 	if err != nil {
 		return err
 	}
@@ -69,6 +77,11 @@ func (s *session) open(sid string) error {
 	if err != nil {
 		return err
 	}
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	s.history.offset = info.Size()
 	s.history.w = f
 	return nil
 }
