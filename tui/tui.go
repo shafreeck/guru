@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	Stdin  io.ReadCloser  = os.Stdin
-	Stdout io.WriteCloser = os.Stdout
-	Stderr io.WriteCloser = os.Stderr
+	Stdin  io.ReadCloser = os.Stdin
+	Stdout io.Writer     = os.Stdout
+	Stderr io.Writer     = os.Stderr
 )
 
 type (

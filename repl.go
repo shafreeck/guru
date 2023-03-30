@@ -26,11 +26,12 @@ func complete(line []rune, pos int) ([][]rune, int) {
 
 func repl(prompt string, do func(text string)) error {
 	rl, err := readline.NewEx(&readline.Config{
-		Prompt:       prompt,
-		AutoComplete: completer(complete),
-		Stdin:        tui.Stdin,
-		Stdout:       tui.Stdout,
-		Stderr:       tui.Stderr,
+		Prompt:         prompt,
+		AutoComplete:   completer(complete),
+		Stdin:          tui.Stdin,
+		Stdout:         tui.Stdout,
+		Stderr:         tui.Stderr,
+		FuncIsTerminal: func() bool { return true },
 	})
 	if err != nil {
 		return err
