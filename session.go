@@ -302,12 +302,28 @@ func (s *session) shrink() {
 	}
 }
 
+func (s *session) historyCommand() {
+	render := tui.JSONRenderer{}
+	for i, record := range s.history.records {
+		data, err := json.Marshal(record)
+		if err != nil {
+			fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
+		}
+		text, err := render.Render(data)
+		if err != nil {
+			fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
+		}
+		fmt.Fprintf(tui.Stdout, "%3d. %s\n", i, string(text))
+	}
+}
+
 func (s *session) registerCommands() {
 	builtins.AddCommand(":session new", s.new, "create a new session")
 	builtins.AddCommand(":session remove", s.removeCommand, "delete a session")
 	builtins.AddCommand(":session shrink", s.shrink, "shrink sessions")
 	builtins.AddCommand(":session list", s.list, "list sessions")
 	builtins.AddCommand(":session switch", s.switchCommand, "switch a session")
+	builtins.AddCommand(":session history", s.historyCommand, "print history of current session")
 
 	builtins.Alias(":session clear", ":session shrink 0:0")
 	s.mm.registerMessageCommands()
