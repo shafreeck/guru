@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -52,6 +53,7 @@ type session struct {
 	mm      messageManager
 	dir     string
 	sid     string
+	stack   []string
 	history history
 }
 
@@ -81,8 +83,8 @@ func (s *session) open(sid string) error {
 	if err != nil {
 		return err
 	}
-	s.history.offset = info.Size()
 	s.history.w = f
+	s.history.offset = info.Size()
 	return nil
 }
 
@@ -234,23 +236,26 @@ func (s *session) removeCommand() {
 	}
 }
 
-func (s *session) new() {
+func (s *session) new(ctx context.Context) string {
 	opts := struct {
-		SID string `cortana:"sid"`
+		SID   string   `cortana:"--session-id, -s, ,the session id"`
+		Texts []string `cortana:"text"`
 	}{}
 	if usage := builtins.Parse(&opts); usage {
-		return
+		return ""
 	}
 
 	if opts.SID != "" {
 		if _, err := os.Stat(path.Join(s.dir, opts.SID)); err == nil {
 			fmt.Fprintln(tui.Stdout, red.Render("session \""+opts.SID+"\" exist"))
-			return
+			return ""
 		}
 	}
 
 	s.switchSession(opts.SID)
 	fmt.Fprintln(tui.Stdout, blue.Render("session "+s.sid+" created"))
+
+	return strings.Join(opts.Texts, " ")
 }
 
 func (s *session) shrink() {
@@ -329,15 +334,66 @@ func (s *session) historyCommand() {
 		fmt.Fprintf(tui.Stdout, "%3d. %s\n", i, string(text))
 	}
 }
+func (s *session) stackPush(ctx context.Context) string {
+	opts := struct {
+		SID   string   `cortana:"--session-id, -s, ,the session id"`
+		Texts []string `cortana:"text"`
+	}{}
+	if usage := builtins.Parse(&opts); usage {
+		return ""
+	}
+
+	// switch to the session
+	s.switchSession(opts.SID)
+	s.stack = append(s.stack, s.sid)
+	fmt.Fprintln(tui.Stdout, blue.Render("step in session: "+s.sid))
+
+	return strings.Join(opts.Texts, " ")
+}
+func (s *session) stackPop() {
+	size := len(s.stack)
+	// left the current session
+	if size == 0 {
+		return
+	}
+
+	s.stack = s.stack[:size-1]
+
+	size--
+	if len(s.stack) > 0 {
+		s.switchSession(s.stack[size-1])
+	}
+}
+func (s *session) stackShow() {
+	out := bytes.NewBuffer(nil)
+	total := len("chat-1680190522751-43e17bad-c0f1-4e2d-9902-db5d1ce965d2")
+	truncated := len("chat-1680190522751-43e17bad-c0f1-4e2d-9902-")
+	for _, sid := range s.stack {
+		// use a short format to make it look friendly
+		// notice that the short ids may collide. use :session list to
+		// find the original id
+		if len(sid) == total {
+			sid = sid[truncated:]
+		}
+		fmt.Fprint(out, blue.Render(fmt.Sprintf(" > %s", sid)))
+	}
+	fmt.Fprintln(tui.Stdout, out.String())
+}
 
 func (s *session) registerCommands() {
-	builtins.AddCommand(":session new", s.new, "create a new session")
+	builtins.AddCommand(":session new", builtin(s.new), "create a new session")
 	builtins.AddCommand(":session remove", s.removeCommand, "delete a session")
 	builtins.AddCommand(":session shrink", s.shrink, "shrink sessions")
 	builtins.AddCommand(":session list", s.list, "list sessions")
 	builtins.AddCommand(":session switch", s.switchCommand, "switch a session")
 	builtins.AddCommand(":session history", s.historyCommand, "print history of current session")
+	builtins.AddCommand(":session stack", s.stackShow, "show the session stack")
+	builtins.AddCommand(":session stack push", builtin(s.stackPush), "create a new session, and stash the current")
+	builtins.AddCommand(":session stack pop", s.stackPop, "pop out current session")
 
 	builtins.Alias(":session clear", ":session shrink 0:0")
+	builtins.Alias(":stack", ":session stack")
+	builtins.Alias(">", ":session stack push")
+	builtins.Alias("<", ":session stack pop")
 	s.mm.registerMessageCommands()
 }

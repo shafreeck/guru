@@ -270,7 +270,7 @@ func chat() {
 			return
 		}
 		// run a builtin command
-		if text[0] == ':' {
+		if text[0] == ':' || text[0] == '<' || text[0] == '>' {
 			args := strings.FieldsFunc(text, func() func(r rune) bool {
 				arounded := false
 				return func(r rune) bool {
@@ -307,7 +307,7 @@ func chat() {
 		}
 	}
 
-	repl(green.Render("ChatGPT > "), talk)
+	repl(&livePrompt{prompt: "ChatGPT >", style: green, append: ">"}, talk)
 
 }
 

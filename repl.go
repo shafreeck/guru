@@ -1,6 +1,9 @@
 package main
 
 import (
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
 	"github.com/chzyer/readline"
 	"github.com/shafreeck/guru/tui"
 )
@@ -24,9 +27,31 @@ func complete(line []rune, pos int) ([][]rune, int) {
 	return nil, 0
 }
 
-func repl(prompt string, do func(text string)) error {
+type livePrompt struct {
+	append string // c is the string to append to the prompt
+	count  int
+
+	prompt string
+	style  lipgloss.Style
+}
+
+func (live *livePrompt) push() {
+	live.count++
+}
+func (live *livePrompt) pop() {
+	live.count--
+	if live.count < 0 {
+		live.count = 0
+	}
+}
+func (live *livePrompt) Render() string {
+	s := strings.Repeat(live.append, live.count)
+	return live.style.Render(live.prompt + s + " ")
+}
+
+func repl(prompt *livePrompt, do func(text string)) error {
 	rl, err := readline.NewEx(&readline.Config{
-		Prompt:         prompt,
+		Prompt:         prompt.Render(),
 		AutoComplete:   completer(complete),
 		Stdin:          tui.Stdin,
 		Stdout:         tui.Stdout,
@@ -42,6 +67,18 @@ func repl(prompt string, do func(text string)) error {
 		line, err := rl.Readline()
 		if err != nil {
 			break
+		}
+		// update the prompt for special command: < and >
+		if len(line) > 0 {
+			c := line[0]
+			switch c {
+			case '>':
+				prompt.push()
+				rl.SetPrompt(prompt.Render())
+			case '<':
+				prompt.pop()
+				rl.SetPrompt(prompt.Render())
+			}
 		}
 		do(line)
 	}
