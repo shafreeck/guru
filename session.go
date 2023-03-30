@@ -11,6 +11,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -50,11 +51,12 @@ func (h *history) append(op string, v *Message) error {
 }
 
 type session struct {
-	mm      messageManager
-	dir     string
-	sid     string
-	stack   []string
-	history history
+	mm        messageManager
+	dir       string
+	sid       string
+	stack     []string
+	stackOnce sync.Once
+	history   history
 }
 
 func newSession(dir string) *session {
@@ -85,6 +87,9 @@ func (s *session) open(sid string) error {
 	}
 	s.history.w = f
 	s.history.offset = info.Size()
+	s.stackOnce.Do(func() {
+		s.stack = append(s.stack, s.sid)
+	})
 	return nil
 }
 
@@ -353,7 +358,7 @@ func (s *session) stackPush(ctx context.Context) string {
 func (s *session) stackPop() {
 	size := len(s.stack)
 	// left the current session
-	if size == 0 {
+	if size == 1 {
 		return
 	}
 
