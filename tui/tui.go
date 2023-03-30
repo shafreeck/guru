@@ -33,6 +33,7 @@ type Model[T any] interface {
 
 func Display[M Model[V], V any](ctx context.Context, m M) (V, error) {
 	// set the default output using termenv, tea.WithOutput(Stdout) does not work for vscode terminal
+	// TODO figure out why tea.WithOutput breaks
 	termenv.SetDefaultOutput(termenv.NewOutput(Stdout, termenv.WithColorCache(true)))
 	p := tea.NewProgram(m, tea.WithContext(ctx), tea.WithInput(Stdin))
 	done, err := p.Run()
