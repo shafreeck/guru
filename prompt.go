@@ -152,7 +152,6 @@ func (ap *AwesomePrompts) actasCommand(ctx context.Context) string {
 		if p.Act != role {
 			continue
 		}
-		ap.Sess.append(&Message{Role: User, Content: p.Prompt})
 		prompt = p.Prompt
 		out = fmt.Sprintf("***Role***: %s\n\n> %s\n\n", p.Act, tui.WrapWord([]byte(p.Prompt), 80))
 		break // stop when matched
