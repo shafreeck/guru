@@ -396,9 +396,10 @@ func (s *session) registerCommands() {
 	builtins.AddCommand(":session stack push", builtin(s.stackPush), "create a new session, and stash the current")
 	builtins.AddCommand(":session stack pop", s.stackPop, "pop out current session")
 
-	builtins.Alias(":session clear", ":session shrink 0:0")
+	builtins.Alias(":new", ":session new")
 	builtins.Alias(":stack", ":session stack")
 	builtins.Alias(">", ":session stack push")
 	builtins.Alias("<", ":session stack pop")
+	builtins.Alias(":session clear", ":session shrink 0:0")
 	s.mm.registerMessageCommands()
 }
