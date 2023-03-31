@@ -26,6 +26,8 @@ var red = lipgloss.NewStyle().Foreground(lipgloss.Color("#e61919"))
 var blue = lipgloss.NewStyle().Foreground(lipgloss.Color("#2da9d2"))
 var green = lipgloss.NewStyle().Foreground(lipgloss.Color("#28bd28"))
 
+var httpClient *http.Client
+
 func chat() {
 	opts := struct {
 		ChatGPTOptions
@@ -128,6 +130,7 @@ func chat() {
 			},
 		}
 	}
+	httpClient = cli
 	c := &ChatGPTClient{
 		cli:  cli,
 		opts: opts.ChatGPTOptions,

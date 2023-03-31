@@ -36,18 +36,18 @@ func (r *TextRenderer) Render(text []byte) ([]byte, error) {
 type MarkdownRender struct {
 }
 
-func (r *MarkdownRender) Render(text []byte) ([]byte, error) {
+func (r *MarkdownRender) Render(text string) (string, error) {
 	// use the markdown renderer to render the response
 	md, err := glamour.NewTermRenderer(
 		// detect background color and pick either the default dark or light theme
 		glamour.WithAutoStyle(),
 	)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	if term.IsTerminal(int(os.Stdout.Fd())) {
-		return md.RenderBytes(text)
+		return md.Render(text)
 	} else {
 		return text, nil
 	}

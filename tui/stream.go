@@ -80,7 +80,7 @@ func (s *StreamModel[E, S]) Update(msg tea.Msg) (m tea.Model, cmd tea.Cmd) {
 		}
 		// this is a work around to wrap words for Chinese
 		// TODO: find a better way
-		data, err := s.renderer.Render(WrapWord(s.out.Bytes(), 110))
+		data, err := s.renderer.Render(string(WrapWord(s.out.Bytes(), 110)))
 		if err != nil {
 			s.text = err.Error()
 		}

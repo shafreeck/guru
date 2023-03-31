@@ -21,7 +21,7 @@ func (m *MarkdownModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Quit
 }
 func (m *MarkdownModel) View() string {
-	text, err := m.r.Render([]byte(m.Text))
+	text, err := m.r.Render((m.Text))
 	if err != nil {
 		return err.Error()
 	}
