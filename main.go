@@ -337,7 +337,7 @@ func chat() {
 		}
 	}
 
-	repl(&livePrompt{prompt: "ChatGPT >", style: green, append: ">"}, talk)
+	repl(&livePrompt{prompt: "guru >", style: green, append: ">"}, talk)
 
 }
 
