@@ -398,6 +398,7 @@ func (s *session) registerCommands() {
 
 	builtins.Alias(":new", ":session new")
 	builtins.Alias(":stack", ":session stack")
+	builtins.Alias(":switch", ":session switch")
 	builtins.Alias(">", ":session stack push")
 	builtins.Alias("<", ":session stack pop")
 	builtins.Alias(":session clear", ":session shrink 0:0")
