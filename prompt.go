@@ -189,6 +189,7 @@ func (ap *AwesomePrompts) RegisterCommands() {
 	builtins.AddCommand(":act as", builtin(ap.actasCommand), "act as a role")
 	builtins.AddCommand(":prompt list", ap.listCommand, "list all prompts")
 	builtins.AddCommand(":prompt sync", ap.syncCommand, "sync prompts with remote repos")
+	builtins.Alias(":prompts", ":prompt list")
 }
 
 func ActAsComplete(line []rune, pos int) ([][]rune, int) {
