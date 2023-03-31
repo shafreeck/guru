@@ -39,6 +39,7 @@ func chat() {
 		Stdin             bool          `cortana:"--stdin, -, false, read from stdin, works as '-f --'"`
 		NonInteractive    bool          `cortana:"--non-interactive, -n, false, chat in none interactive mode"`
 		DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded"`
+		PromptDir         string        `cortana:"--prompt-dir, -, ~/.guru/prompt, the prompt directory"`
 		SessionDir        string        `cortana:"--session-dir, -, ~/.guru/session, the session directory"`
 		SessionID         string        `cortana:"--session-id, -s,, the session id"`
 		Text              string
@@ -84,6 +85,32 @@ func chat() {
 	defer sess.close()
 	// only listen on command events after open(to avoid being fired by replaying)
 	sess.listenOnBuiltins()
+
+	if opts.PromptDir == "" {
+		opts.PromptDir = "./"
+	}
+	if opts.PromptDir[0] == '~' {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatal(err)
+		}
+		opts.PromptDir = path.Join(home, opts.PromptDir[1:])
+	}
+	if _, err := os.Stat(opts.PromptDir); err != nil {
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(opts.PromptDir, 0755); err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			log.Fatal(err)
+		}
+	}
+	ap := AwesomePrompts{
+		Sess: sess,
+		Dir:  opts.PromptDir,
+	}
+	ap.RegisterCommands()
+	ap.load()
 
 	ctx := context.Background()
 	cli := &http.Client{Timeout: opts.Timeout}

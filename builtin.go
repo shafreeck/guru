@@ -65,6 +65,9 @@ func init() {
 
 func builtinCompleter(line []rune, pos int) ([][]rune, int) {
 	prefix := string(line)
+	if strings.HasPrefix(prefix, ":act as") {
+		return ActAsComplete(line, pos)
+	}
 	cmds := builtins.Complete(prefix)
 	var suggests [][]rune
 	for _, cmd := range cmds {
