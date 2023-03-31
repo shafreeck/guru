@@ -142,6 +142,8 @@ func (ap *AwesomePrompts) actasCommand(ctx context.Context) string {
 		builtins.Usage()
 		return ""
 	}
+	// reset the message list first
+	builtins.Launch(context.Background(), []string{":reset"})
 
 	var out, prompt string
 
