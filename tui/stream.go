@@ -99,18 +99,16 @@ func WrapWord(text []byte, width int) []byte {
 		return text
 	}
 
-	var total, length, prev int
+	var length, prev int
 	out := bytes.NewBuffer(nil)
 	for i, w := 0, 0; i < len(text); i += w {
 		r, size := utf8.DecodeRune(text[i:])
 		length += size
 
-		if byte(r) == '\n' || byte(r) == ' ' {
-			total += length
+		if size == 1 && (byte(r) == '\n' || byte(r) == ' ') {
 			length = 0
 		}
 		if length > width {
-			total += length
 			length = 0
 			out.Write(text[prev:i])
 			prev = i
