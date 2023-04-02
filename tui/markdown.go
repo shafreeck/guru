@@ -1,6 +1,10 @@
 package tui
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	"fmt"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 var _ Model[string] = &MarkdownModel{}
 
@@ -15,6 +19,9 @@ func NewMarkdownModel(text string) *MarkdownModel {
 }
 
 func (m *MarkdownModel) Init() tea.Cmd {
+	if !isRenderable() {
+		fmt.Fprint(Stdout, m.Text)
+	}
 	return tea.Quit
 }
 func (m *MarkdownModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
