@@ -144,29 +144,27 @@ func (g *Guru) ChatCommand() {
 		DelimiterStyle: g.promptStyle,
 	}
 	eval := func(text string) {
-		if len(text) == 0 {
-			return
-		}
-
 		// handle sys or builtin commands
-		switch c := text[0]; c {
-		case '>', '<':
-			if c == '>' {
-				lp.PushSuffix(">")
-			} else if c == '<' {
-				lp.PopSuffix()
+		if len(text) > 0 {
+			switch c := text[0]; c {
+			case '>', '<':
+				if c == '>' {
+					lp.PushSuffix(">")
+				} else if c == '<' {
+					lp.PopSuffix()
+				}
+				fallthrough
+			case ':':
+				if cont := builtinCommandEval(sess, text); !cont {
+					return
+				}
+				text = ""
+			case '$':
+				if cont := sysCommandEval(sess, text[1:]); !cont {
+					return
+				}
+				text = ""
 			}
-			fallthrough
-		case ':':
-			if cont := builtinCommandEval(sess, text); !cont {
-				return
-			}
-			text = ""
-		case '$':
-			if cont := sysCommandEval(sess, text[1:]); !cont {
-				return
-			}
-			text = ""
 		}
 
 		copts := &ChatOptions{
