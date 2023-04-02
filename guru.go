@@ -121,6 +121,7 @@ func (g *Guru) ChatCommand() {
 		opts.Stdin = opts.Filename == "--"
 	}
 	if opts.Stdin {
+		opts.NonInteractive = true
 		content, err = g.readStdin()
 	} else if opts.Filename != "" && opts.Filename != "--" {
 		content, err = g.readFile(opts.Filename)
@@ -180,6 +181,10 @@ func (g *Guru) ChatCommand() {
 
 	// Evaluate first before entering interactive mode
 	eval(opts.Text)
+
+	if opts.NonInteractive {
+		return
+	}
 
 	repl := NewRepl(lp)
 	if err := repl.Loop(NewEvaluator(sess, lp, eval)); err != nil {

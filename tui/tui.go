@@ -40,7 +40,7 @@ func Display[M Model[V], V any](ctx context.Context, m M) (V, error) {
 	// TODO figure out why tea.WithOutput breaks
 	termenv.SetDefaultOutput(termenv.NewOutput(Stdout, termenv.WithColorCache(true)))
 	opts := []tea.ProgramOption{tea.WithContext(ctx), tea.WithInput(Stdin)}
-	if !isRenderable() {
+	if !IsRenderable() {
 		opts = append(opts, tea.WithoutRenderer())
 	}
 	p := tea.NewProgram(m, opts...)
@@ -52,6 +52,6 @@ func Display[M Model[V], V any](ctx context.Context, m M) (V, error) {
 	return res.Value(), err
 }
 
-func isRenderable() bool {
+func IsRenderable() bool {
 	return readline.IsTerminal(int(os.Stdout.Fd())) || SSHAPPMode
 }

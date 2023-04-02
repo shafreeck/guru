@@ -91,7 +91,16 @@ func (c *ChatCommand) ask(ctx context.Context, opts *ChatOptions) error {
 	}
 
 	c.verbose("render with markdown")
-	tui.Display[tui.Model[string], string](ctx, tui.NewMarkdownModel(out.String()))
+	text, err := tui.Display[tui.Model[string], string](ctx, tui.NewMarkdownModel(out.String()))
+	if err != nil {
+		return err
+	}
+
+	// Print to output if the tui is not renderable
+	// in case the the stdout is not terminal
+	if !tui.IsRenderable() {
+		c.sess.out.Print(text)
+	}
 
 	if !opts.NonInteractive {
 		c.sess.out.Printf("Cost : prompt(%d) completion(%d) total(%d)",
@@ -158,6 +167,11 @@ retry:
 		return err
 	}
 
+	// Print to output if the tui is not renderable
+	// in case the the stdout is not terminal
+	if !tui.IsRenderable() {
+		c.sess.out.Print(content)
+	}
 	// append the response
 	c.sess.Append(&Message{Role: User, Content: content})
 
