@@ -29,6 +29,7 @@ func newGuruSSHServer(address, auth string) *guruSSHServer {
 }
 
 func (g *guruSSHServer) serve() error {
+	tui.SSHAPPMode = true
 	var opts []ssh.Option
 	opts = append(opts, wish.WithAddress(g.address))
 	if g.auth != "" {
