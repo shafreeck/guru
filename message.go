@@ -12,6 +12,7 @@ import (
 )
 
 type messageManager struct {
+	out      CommandOutput
 	messages []*Message
 }
 
@@ -19,7 +20,7 @@ func (m *messageManager) append(msg *Message) {
 	m.messages = append(m.messages, msg)
 }
 
-func (m *messageManager) display() {
+func (m *messageManager) listCommand() (_ string) {
 	opts := struct {
 		N int `cortana:"--n, -n, 0, list the first n messages"`
 	}{}
@@ -31,16 +32,21 @@ func (m *messageManager) display() {
 	for i, msg := range m.messages {
 		data, err := json.Marshal(msg)
 		if err != nil {
-			fmt.Fprintln(tui.Stderr, err)
+			m.out.Errorln(err)
+			return
 		}
-		text, err := render.Render(data)
+		text, err := render.Render(string(data))
 		if err != nil {
-			fmt.Fprintln(tui.Stderr, err)
+			m.out.Errorln(err)
+			return
 		}
-		fmt.Fprintln(tui.Stdout, fmt.Sprintf("%3d. ", i), string(text))
+		m.out.Printf("%3d. %s", i, text)
+		// we cat not use "\n" in Printf, it cause conficts with the style renderer
+		m.out.Println()
 	}
+	return
 }
-func (m *messageManager) shrink() {
+func (m *messageManager) shrinkCommand() (_ string) {
 	opts := struct {
 		Expr string `cortana:"expr"`
 	}{}
@@ -58,7 +64,7 @@ func (m *messageManager) shrink() {
 	if v := parts[0]; v != "" {
 		begin, err = strconv.Atoi(parts[0])
 		if err != nil {
-			fmt.Fprintln(tui.Stderr, err)
+			m.out.Errorln(err)
 		}
 		if begin >= size {
 			return
@@ -80,19 +86,14 @@ func (m *messageManager) shrink() {
 		end = size
 	}
 	m.messages = m.messages[begin:end]
-	m.display()
+	m.listCommand()
+	return
 }
-func (m *messageManager) delete() {
+func (m *messageManager) deleteCommand() (_ string) {
 	opts := struct {
-		Indexes []int `cortana:"index, -"`
+		Indexes []int `cortana:"index, -, -"`
 	}{}
 	if usage := builtins.Parse(&opts); usage {
-		return
-	}
-
-	// TODO make Indexes as a required argument
-	if len(opts.Indexes) == 0 {
-		builtins.Usage()
 		return
 	}
 
@@ -109,6 +110,7 @@ func (m *messageManager) delete() {
 		}
 	}
 	m.messages = updated
+	return
 }
 func (m *messageManager) autoShrink() int {
 	size := len(m.messages)
@@ -124,7 +126,7 @@ func (m *messageManager) autoShrink() int {
 	return idx
 }
 
-func (m *messageManager) show() {
+func (m *messageManager) showCommand() (_ string) {
 	opts := struct {
 		Indexes []int `cortana:"index, -"`
 		Role    bool  `cortana:"--role, -r, false, show message with role"`
@@ -133,10 +135,14 @@ func (m *messageManager) show() {
 		return
 	}
 
-	// TODO make Indexes as a require argument
-	if len(opts.Indexes) == 0 {
-		builtins.Usage()
+	// nothing to show
+	if len(m.messages) == 0 {
 		return
+	}
+
+	// show the last message if no index supplied
+	if len(opts.Indexes) == 0 {
+		opts.Indexes = append(opts.Indexes, len(m.messages)-1)
 	}
 	out := bytes.NewBuffer(nil)
 	for _, index := range opts.Indexes {
@@ -149,9 +155,10 @@ func (m *messageManager) show() {
 		out.WriteString(m.messages[index].Content + "\n\n")
 	}
 	tui.Display[tui.Model[string], string](context.Background(), tui.NewMarkdownModel(out.String()))
+	return
 }
 
-func (m *messageManager) appendCommand() {
+func (m *messageManager) appendCommand() (_ string) {
 	opts := struct {
 		Role string `cortana:"--role, -r, user, append message with certain role"`
 		Text string `cortana:"text"`
@@ -163,13 +170,14 @@ func (m *messageManager) appendCommand() {
 	if opts.Text != "" {
 		m.append(&Message{Role: ChatRole(opts.Role), Content: opts.Text})
 	}
+	return
 }
 
-func (m *messageManager) registerMessageCommands() {
-	builtins.AddCommand(":message list", m.display, "list messages")
-	builtins.AddCommand(":message delete", m.delete, "delete messages")
-	builtins.AddCommand(":message shrink", m.shrink, "shrink messages")
-	builtins.AddCommand(":message show", m.show, "show certain messages")
+func (m *messageManager) registerBuiltinCommands() {
+	builtins.AddCommand(":message list", m.listCommand, "list messages")
+	builtins.AddCommand(":message delete", m.deleteCommand, "delete messages")
+	builtins.AddCommand(":message shrink", m.shrinkCommand, "shrink messages")
+	builtins.AddCommand(":message show", m.showCommand, "show certain messages")
 	builtins.AddCommand(":message append", m.appendCommand, "append a message")
 	builtins.Alias(":ls", ":message list")
 	builtins.Alias(":show", ":message show")

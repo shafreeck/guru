@@ -1,16 +1,11 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
-	"strings"
 
-	"github.com/shafreeck/guru/tui"
+	"github.com/shafreeck/guru/chat"
 )
 
 type ChatRole string
@@ -29,6 +24,13 @@ type Message struct {
 type Question struct {
 	ChatGPTOptions
 	Messages []*Message `json:"messages"`
+}
+
+func (q *Question) New() any {
+	return &Question{}
+}
+func (q *Question) Marshal() ([]byte, error) {
+	return json.Marshal(q)
 }
 
 type Answer struct {
@@ -51,10 +53,25 @@ type Answer struct {
 		Code    string `json:"code"`
 	}
 }
+
+func (a *Answer) New() any {
+	return &Answer{}
+}
+func (a *Answer) Unmarshal(data []byte) error {
+	return json.Unmarshal(data, a)
+}
+
 type AnswerChoice struct {
 	Message      *Message `json:"message"`
 	FinishReason string   `json:"finish_reason"`
 	Index        int      `json:"index"`
+}
+
+type AnswerError struct {
+	Message string `json:"message"`
+	Type    string `json:"type"`
+	Param   string `json:"param"`
+	Code    string `json:"code"`
 }
 type AnswerChunk struct {
 	ID      string `json:"id"`
@@ -68,12 +85,18 @@ type AnswerChunk struct {
 		FinishReason string `json:"finish_reason"`
 		Index        int    `json:"index"`
 	} `json:"choices"`
-	Error struct {
-		Message string `json:"message"`
-		Type    string `json:"type"`
-		Param   string `json:"param"`
-		Code    string `json:"code"`
-	} `json:"error"`
+	Error AnswerError `json:"error"`
+}
+
+func (ac *AnswerChunk) New() any {
+	return &AnswerChunk{}
+}
+func (ac *AnswerChunk) Unmarshal(data []byte) error {
+	return json.Unmarshal(data, ac)
+}
+func (ac *AnswerChunk) SetError(err error) {
+	ac.Error.Type = "guru_inner_error"
+	ac.Error.Message = err.Error()
 }
 
 type ChatGPTOptions struct {
@@ -89,168 +112,22 @@ type ChatGPTOptions struct {
 	User             string  `json:"user,omitempty" cortana:"--chatgpt.user, -, , A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse."`
 }
 
+const ChatGPTAPIURL = "https://api.openai.com/v1/chat/completions"
+
 type ChatGPTClient struct {
-	opts ChatGPTOptions
-	cli  *http.Client
-
-	history []*Answer
+	opts *ChatGPTOptions
+	cli  *chat.Client[*Question, *Answer, *AnswerChunk]
 }
 
-func (c *ChatGPTClient) ask(ctx context.Context, apiKey string, messages []*Message) (*Answer, error) {
-	url := "https://api.openai.com/v1/chat/completions"
-
-	question := Question{
-		ChatGPTOptions: c.opts,
-		Messages:       messages,
-	}
-	data, err := json.Marshal(question)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(data))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("Authorization", "Bearer "+apiKey)
-	req.Header.Add("Content-Type", "application/json")
-
-	resp, err := c.cli.Do(req.WithContext(ctx))
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	data, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	ans := Answer{}
-	if err := json.Unmarshal(data, &ans); err != nil {
-		return nil, err
-	}
-	c.history = append(c.history, &ans)
-	return &ans, nil
+func NewChatGPTClient(cli *http.Client, apikey string, opts *ChatGPTOptions) *ChatGPTClient {
+	chatCli := chat.New[*Question, *Answer, *AnswerChunk](cli, ChatGPTAPIURL, apikey)
+	return &ChatGPTClient{opts: opts, cli: chatCli}
 }
 
-func (c *ChatGPTClient) stream(ctx context.Context, apiKey string, messages []*Message) (chan *AnswerChunk, error) {
-	ch := make(chan *AnswerChunk)
-	url := "https://api.openai.com/v1/chat/completions"
-
-	question := Question{
-		ChatGPTOptions: c.opts,
-		Messages:       messages,
-	}
-	data, err := json.Marshal(question)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(data))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("Authorization", "Bearer "+apiKey)
-	req.Header.Add("Content-Type", "application/json")
-
-	resp, err := c.cli.Do(req.WithContext(ctx))
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		defer resp.Body.Close()
-		defer close(ch)
-		var last *AnswerChunk
-		scanner := bufio.NewScanner(resp.Body)
-		content := bytes.NewBuffer(nil)
-		errbuf := bytes.NewBuffer(nil)
-		for scanner.Scan() {
-			ansc := &AnswerChunk{}
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" {
-				continue
-			}
-
-			prefix := "data:"
-			// it would be an error event if not data: prefixed
-			if !strings.HasPrefix(line, prefix) {
-				errbuf.WriteString(line)
-				continue
-			}
-			if line == "data: [DONE]" {
-				// build an Answer to add to history
-				ans := &Answer{
-					ID:      last.ID,
-					Object:  last.Object,
-					Created: last.Created,
-					Model:   last.Model,
-					Choices: []AnswerChoice{
-						{
-							Index:        last.Choices[0].Index,
-							Message:      &Message{Role: Assistant, Content: content.String()},
-							FinishReason: last.Choices[0].FinishReason,
-						}},
-				}
-				c.history = append(c.history, ans)
-				return
-			}
-			text := line[len(prefix):]
-
-			if err := json.Unmarshal([]byte(text), ansc); err != nil {
-				ansc.Error.Message = err.Error()
-				ansc.Error.Type = "command_fail"
-			}
-
-			if len(ansc.Choices) > 0 {
-				last = ansc
-				content.WriteString(ansc.Choices[0].Delta.Content)
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case ch <- ansc:
-			}
-		}
-
-		if errbuf.Len() == 0 {
-			return
-		}
-		// send the error message
-		ansc := &AnswerChunk{}
-		if err := json.Unmarshal(errbuf.Bytes(), ansc); err != nil {
-			ansc.Error.Message = err.Error()
-			ansc.Error.Type = "command_fail"
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case ch <- ansc:
-		}
-	}()
-	return ch, nil
+func (c *ChatGPTClient) Ask(ctx context.Context, q *Question) (*Answer, error) {
+	return c.cli.Ask(ctx, q)
 }
 
-func (c *ChatGPTClient) respCommand() {
-	opts := struct {
-		N int `cortana:"--n, -n, 0, list the first n messages"`
-	}{}
-
-	builtins.Parse(&opts)
-	render := &tui.JSONRenderer{}
-	for _, resp := range c.history {
-		data, err := json.Marshal(resp)
-		if err != nil {
-			fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
-		}
-		text, err := render.Render(data)
-		if err != nil {
-			fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
-		}
-		fmt.Fprintln(tui.Stdout, string(text))
-	}
-}
-
-func (c *ChatGPTClient) RegisterBuiltinCommands() {
-	builtins.AddCommand(":resp", c.respCommand, "list history responses")
+func (c *ChatGPTClient) Stream(ctx context.Context, q *Question) (chan *AnswerChunk, error) {
+	return c.cli.Stream(ctx, q)
 }

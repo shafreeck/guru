@@ -1,15 +1,10 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
-	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/ssh"
@@ -21,32 +16,6 @@ import (
 	"github.com/shafreeck/cortana"
 	"github.com/shafreeck/guru/tui"
 )
-
-func serve() {
-	opts := struct {
-		Address string `cortana:"address, -, :2023"`
-		Auth    string `cortana:"--auth, -, ,the auth password"`
-	}{}
-	cortana.Parse(&opts)
-
-	g := newGuruSSHServer(opts.Address, opts.Auth)
-
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		if err := g.serve(); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	fmt.Println("serving on:", opts.Address)
-	<-done
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer func() { cancel() }()
-	if err := g.s.Shutdown(ctx); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
-		log.Fatal(err)
-	}
-}
 
 type guruSSHServer struct {
 	s       *ssh.Server
@@ -163,8 +132,9 @@ func (g *guruSSHServer) handle(sess ssh.Session) {
 	if args[0] == "serve" {
 		fmt.Sprintln(sess, "serve command is not supported in the sshapp mode")
 	}
-	builtins.AddCommand(":exit", func() {
+	builtins.AddCommand(":exit", func() string {
 		sess.Close()
+		return ""
 	}, "exit the session")
 	cortana.Launch(args...)
 }

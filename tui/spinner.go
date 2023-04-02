@@ -64,6 +64,9 @@ func (s *SpinnerModel[V]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (s *SpinnerModel[V]) View() string {
+	if !isRenderable() {
+		return ""
+	}
 	str := fmt.Sprintf("%s %s", s.Model.View(), s.hint)
 	return str + strings.Repeat(" ", 10) + "\r"
 }

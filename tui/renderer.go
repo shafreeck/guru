@@ -17,12 +17,12 @@ type Renderer interface {
 type JSONRenderer struct {
 }
 
-func (r *JSONRenderer) Render(text []byte) ([]byte, error) {
+func (r *JSONRenderer) Render(text string) (string, error) {
 	out := bytes.NewBuffer(nil)
 	if err := quick.Highlight(out, string(text), "json", "terminal256", "monokai"); err != nil {
-		return nil, err
+		return "", err
 	}
-	return out.Bytes(), nil
+	return out.String(), nil
 }
 
 type TextRenderer struct {

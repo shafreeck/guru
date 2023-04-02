@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -30,9 +31,20 @@ type PromptEntry struct {
 	Prompt string
 }
 type AwesomePrompts struct {
-	Sess    *session
-	Dir     string
-	Prompts []PromptEntry
+	dir string
+	cli *http.Client
+	out CommandOutput
+
+	prompts []PromptEntry
+}
+
+func NewAwesomePrompts(dir string, cli *http.Client, out CommandOutput) *AwesomePrompts {
+	if out == nil {
+		out = &commandStdout{}
+	}
+	ap := &AwesomePrompts{dir: dir, cli: cli, out: out}
+	ap.registerBuiltinCommands()
+	return ap
 }
 
 func loadCSV(r io.Reader) []PromptEntry {
@@ -59,6 +71,7 @@ func loadCSV(r io.Reader) []PromptEntry {
 	}
 	return prompts
 }
+
 func loadJSON(r io.Reader) []PromptEntry {
 	var prompts []PromptEntry
 
@@ -69,9 +82,8 @@ func loadJSON(r io.Reader) []PromptEntry {
 }
 
 func (ap *AwesomePrompts) sync() error {
-	var prompts []PromptEntry
 	for _, repo := range AwesomePromptsRepos {
-		resp, err := httpClient.Get(repo.Url)
+		resp, err := ap.cli.Get(repo.Url)
 		if err != nil {
 			return err
 		}
@@ -82,30 +94,28 @@ func (ap *AwesomePrompts) sync() error {
 		if err != nil {
 			return err
 		}
-		saveas := path.Join(ap.Dir, repo.Saveas)
+		saveas := path.Join(ap.dir, repo.Saveas)
 		if err := os.WriteFile(saveas, data, 0644); err != nil {
 			return err
 		}
-		fmt.Fprintln(tui.Stdout, blue.Render(repo.Url+" synced"))
+		ap.out.Println(repo.Url + " synced")
 	}
-	ap.Prompts = prompts
 	return nil
 }
 
-func (ap *AwesomePrompts) load() error {
+func (ap *AwesomePrompts) Load() error {
 	prefix := "awesome-chatgpt-prompts"
 	var prompts []PromptEntry
 
-	entries, err := os.ReadDir(ap.Dir)
+	entries, err := os.ReadDir(ap.dir)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 
 	var files []string
 	for _, entry := range entries {
 		if strings.HasPrefix(entry.Name(), prefix) {
-			files = append(files, path.Join(ap.Dir, entry.Name()))
+			files = append(files, path.Join(ap.dir, entry.Name()))
 		}
 	}
 	if len(files) == 0 {
@@ -124,17 +134,17 @@ func (ap *AwesomePrompts) load() error {
 			prompts = append(prompts, loadJSON(r)...)
 		}
 	}
-	ap.Prompts = prompts
+	ap.prompts = prompts
 	return nil
 }
 
-func (ap *AwesomePrompts) actasCommand(ctx context.Context) string {
+func (ap *AwesomePrompts) actasCommand() string {
 	opts := struct {
 		Role []string `cortana:"role, -, -"`
 	}{}
 
-	if len(ap.Prompts) == 0 {
-		fmt.Fprintln(tui.Stderr, red.Render("no prompts found, use ':prompt sync' to sync with the remote repo"))
+	if len(ap.prompts) == 0 {
+		ap.out.Errorln("no prompts found, use ':prompt sync' to sync with the remote repo")
 		return ""
 	}
 
@@ -143,12 +153,11 @@ func (ap *AwesomePrompts) actasCommand(ctx context.Context) string {
 		return ""
 	}
 	// reset the message list first
-	builtins.Launch(context.Background(), []string{":reset"})
+	builtins.Launch([]string{":reset"})
 
 	var out, prompt string
-
 	role := strings.Join(opts.Role, " ")
-	for _, p := range ap.Prompts {
+	for _, p := range ap.prompts {
 		if p.Act != role {
 			continue
 		}
@@ -159,58 +168,58 @@ func (ap *AwesomePrompts) actasCommand(ctx context.Context) string {
 	if out == "" {
 		return ""
 	}
+
 	render := tui.MarkdownRender{}
-	text, _ := render.Render(out)
-	fmt.Fprint(tui.Stdout, string(text))
+	text, err := render.Render(out)
+	if err != nil {
+		ap.out.Errorln(err)
+	}
+
+	ap.out.Print(text)
+
+	// return prompt to trigger a request
 	return prompt
 }
-func (ap *AwesomePrompts) listCommand() {
+func (ap *AwesomePrompts) listCommand() (_ string) {
 	render := tui.MarkdownRender{}
 
 	var buf = bytes.NewBuffer(nil)
-	for _, p := range ap.Prompts {
+	for _, p := range ap.prompts {
 		out := fmt.Sprintf("***Role***: %s\n\n> %s\n\n", p.Act, tui.WrapWord([]byte(p.Prompt), 80))
 		text, err := render.Render(out)
 		if err != nil {
-			fmt.Fprint(tui.Stderr, red.Render(err.Error()))
+			ap.out.Errorln(err)
 			return
 		}
 		fmt.Fprint(buf, text)
 	}
 	tui.Display[tui.Model[string], string](context.Background(), tui.NewViewport("Awesome ChatGPT Prompts", buf.String()))
+	return
 }
-func (ap *AwesomePrompts) syncCommand() {
+func (ap *AwesomePrompts) syncCommand() (_ string) {
 	if err := ap.sync(); err != nil {
-		fmt.Fprintln(tui.Stdout, red.Render(err.Error()))
+		ap.out.Errorln(err)
+		return
 	}
-	ap.load()
+	if err := ap.Load(); err != nil {
+		ap.out.Errorln(err)
+		return
+	}
+	return
 }
 
-func (ap *AwesomePrompts) RegisterCommands() {
-	builtins.AddCommand(":act as", builtin(ap.actasCommand), "act as a role")
+func (ap *AwesomePrompts) registerBuiltinCommands() {
+	builtins.AddCommand(":act as", ap.actasCommand, "act as a role", ap.actasComplete)
 	builtins.AddCommand(":prompt list", ap.listCommand, "list all prompts")
 	builtins.AddCommand(":prompt sync", ap.syncCommand, "sync prompts with remote repos")
 	builtins.Alias(":prompts", ":prompt list")
 }
 
-func ActAsComplete(line []rune, pos int) ([][]rune, int) {
-	home, _ := os.UserHomeDir()
-	ap := AwesomePrompts{Dir: path.Join(home, ".guru/prompt")}
-	ap.load()
-
-	prefix := string(line)
-	if prefix == ":act as" {
-		return [][]rune{[]rune(" ")}, 0
-	}
-	// the prefix should has prefix :act as
-	if !strings.HasPrefix(prefix, ":act as ") {
-		return nil, 0
-	}
-
-	n := 50 // return the first n prompts
-	act := strings.TrimPrefix(prefix, ":act as ")
+func (ap *AwesomePrompts) actasComplete(line []rune, pos int) ([][]rune, int) {
+	n := 50 // return the first n prompts, TODO use a pager
+	act := strings.TrimPrefix(string(line), ":act as ")
 	var suggests [][]rune
-	for i, p := range ap.Prompts {
+	for i, p := range ap.prompts {
 		if strings.HasPrefix(p.Act, act) {
 			if i == n {
 				break

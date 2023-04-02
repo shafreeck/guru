@@ -13,15 +13,19 @@ import (
 
 // the builtin commands
 
-type builtinCommand struct {
-	*cortana.Cortana
-
-	sess *session
-	ctx  context.Context
-	text string
+type CommandListener interface {
+	OnCommand(args []string) // args[0] is the command name
 }
 
-func (c *builtinCommand) Launch(ctx context.Context, args []string) string {
+type BuiltinCommand struct {
+	*cortana.Cortana
+
+	completes *Completion
+	listeners map[CommandListener]struct{}
+	text      string
+}
+
+func (c *BuiltinCommand) Launch(args []string) string {
 	cmd := c.SearchCommand(args)
 	if cmd == nil {
 		usage := lipgloss.NewStyle().Foreground(
@@ -30,18 +34,25 @@ func (c *builtinCommand) Launch(ctx context.Context, args []string) string {
 		fmt.Fprint(tui.Stdout, usage)
 		return ""
 	}
-	c.ctx = ctx
 	cmd.Proc()
 	text := c.text
 	c.text = "" // clear the state
-	if c.sess != nil {
-		c.sess.onCommandEvent(args)
+
+	for l := range builtins.listeners {
+		l.OnCommand(args)
 	}
 	return text
 }
 
+func (c *BuiltinCommand) AddListener(l CommandListener) {
+	c.listeners[l] = struct{}{}
+}
+func (c *BuiltinCommand) RemoveListener(l CommandListener) {
+	delete(c.listeners, l)
+}
+
 // Parse the args and set usgae if meet --help/-h
-func (c *builtinCommand) Parse(v interface{}) (usage bool) {
+func (c *BuiltinCommand) Parse(v interface{}) (usage bool) {
 	c.Cortana.Parse(v, cortana.OnUsage(func(usageString string) {
 		c.Usage()
 		usage = true
@@ -49,48 +60,58 @@ func (c *builtinCommand) Parse(v interface{}) (usage bool) {
 	return
 }
 
-func builtin(f func(ctx context.Context) string) func() {
+type BuiltinCommandFunc func() string
+
+func (c *BuiltinCommand) AddCommand(path string, cmd BuiltinCommandFunc,
+	breif string, complete ...CompleteCommand) {
+	c.Cortana.AddCommand(path, builtin(cmd), breif)
+	if len(complete) == 0 {
+		c.completes.AddCommand(path, func(s []rune, pos int) ([][]rune, int) { return nil, 0 })
+		return
+	}
+	c.completes.AddCommand(path, complete[0])
+}
+func (c *BuiltinCommand) Alias(name, definition string) {
+	c.Cortana.Alias(name, definition)
+	c.completes.Alias(name, definition)
+}
+
+func builtin(f func() string) func() {
 	return func() {
-		builtins.text = f(builtins.ctx)
+		builtins.text = f()
 	}
 }
 
-var builtins = builtinCommand{Cortana: cortana.New(cortana.ExitOnError(false))}
+var builtins = BuiltinCommand{Cortana: cortana.New(cortana.ExitOnError(false)),
+	completes: completes, listeners: make(map[CommandListener]struct{})}
 
 func init() {
+	// add commands
 	builtins.AddCommand(":exit", exit, "exit guru")
+	builtins.AddCommand(":read", read, "read from stdin with a textarea")
+	builtins.AddCommand(":help", func() string {
+		return builtins.Launch(nil) // launch none commonds, so it print usage and return ""
+	}, "help for commands")
+
+	// add aliases
 	builtins.Alias(":quit", ":exit")
-	builtins.AddCommand(":read", builtin(read), "read from stdin with a textarea")
+
+	// add completion handler for system commands
+	completes.AddCommand("$", sysCommandComplete)
 }
 
-func builtinCompleter(line []rune, pos int) ([][]rune, int) {
-	prefix := string(line)
-	if strings.HasPrefix(prefix, ":act as") {
-		return ActAsComplete(line, pos)
-	}
-	cmds := builtins.Complete(prefix)
-	var suggests [][]rune
-	for _, cmd := range cmds {
-		path := cmd.Path
-		if path == "" {
-			continue
-		}
-		suggests = append(suggests, []rune(strings.TrimPrefix(path, prefix)))
-	}
-	return suggests, pos
-}
-
-func exit() {
+func exit() string {
 	os.Exit(0)
+	return ""
 }
 
-func read(ctx context.Context) string {
+func read() string {
 	opts := struct {
 		Prompt []string `cortana:"prompt"`
 	}{}
 	builtins.Parse(&opts)
 
 	// no error in this model
-	text, _ := tui.Display[tui.Model[string], string](ctx, tui.NewTextAreaModel())
+	text, _ := tui.Display[tui.Model[string], string](context.Background(), tui.NewTextAreaModel())
 	return strings.Join(opts.Prompt, " ") + "\n" + text
 }

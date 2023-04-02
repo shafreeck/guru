@@ -1,7 +1,7 @@
 package main
 
 import (
-	"strings"
+	"bytes"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/chzyer/readline"
@@ -14,45 +14,54 @@ func (c completer) Do(line []rune, pos int) ([][]rune, int) {
 	return c(line, pos)
 }
 
-func complete(line []rune, pos int) ([][]rune, int) {
-	if len(line) == 0 {
-		return nil, 0
+// {prefix} {delimiter} [suffix...]
+// for prefix=guru, delimiter = >, and suffix = >
+// the prompt string is:
+//
+//	guru >>>
+type LivePrompt struct {
+	Prefix    string
+	Suffixes  []string
+	Delimiter string
+
+	PrefixStyle    lipgloss.Style
+	SuffixStyle    lipgloss.Style
+	DelimiterStyle lipgloss.Style
+}
+
+func (lp *LivePrompt) PushSuffix(suffix string) {
+	lp.Suffixes = append(lp.Suffixes, suffix)
+}
+func (lp *LivePrompt) PopSuffix() {
+	if len(lp.Suffixes) == 0 {
+		return
 	}
-	switch line[0] {
-	case '$':
-		return cmdCompleter(line, pos)
-	case ':':
-		return builtinCompleter(line, pos)
+	lp.Suffixes = lp.Suffixes[0 : len(lp.Suffixes)-1]
+}
+
+func (lp *LivePrompt) Render() string {
+	out := bytes.NewBuffer(nil)
+	out.WriteString(lp.PrefixStyle.Render(lp.Prefix))
+	out.WriteString(" " + lp.DelimiterStyle.Render(lp.Delimiter))
+	for _, suffix := range lp.Suffixes {
+		out.WriteString(lp.SuffixStyle.Render(suffix))
 	}
-	return nil, 0
+	out.WriteString(" ")
+	return out.String()
 }
 
-type livePrompt struct {
-	append string // c is the string to append to the prompt
-	count  int
-
-	prompt string
-	style  lipgloss.Style
+type Repl struct {
+	prompt *LivePrompt
 }
 
-func (live *livePrompt) push() {
-	live.count++
-}
-func (live *livePrompt) pop() {
-	live.count--
-	if live.count < 0 {
-		live.count = 0
-	}
-}
-func (live *livePrompt) Render() string {
-	s := strings.Repeat(live.append, live.count)
-	return live.style.Render(live.prompt + s + " ")
+func NewRepl(lp *LivePrompt) *Repl {
+	return &Repl{prompt: lp}
 }
 
-func repl(prompt *livePrompt, do func(text string)) error {
+func (repl *Repl) Loop(e *Evaluator) error {
 	rl, err := readline.NewEx(&readline.Config{
-		Prompt:         prompt.Render(),
-		AutoComplete:   completer(complete),
+		Prompt:         repl.prompt.Render(),
+		AutoComplete:   completer(completes.Complete),
 		Stdin:          tui.Stdin,
 		Stdout:         tui.Stdout,
 		Stderr:         tui.Stderr,
@@ -64,23 +73,13 @@ func repl(prompt *livePrompt, do func(text string)) error {
 	defer rl.Close()
 
 	for {
+		rl.SetPrompt(repl.prompt.Render())
+
 		line, err := rl.Readline()
 		if err != nil {
 			break
 		}
-		// update the prompt for special command: < and >
-		if len(line) > 0 || (len(line) > 1 && line[1] == ' ') {
-			c := line[0]
-			switch c {
-			case '>':
-				prompt.push()
-				rl.SetPrompt(prompt.Render())
-			case '<':
-				prompt.pop()
-				rl.SetPrompt(prompt.Render())
-			}
-		}
-		do(line)
+		e.eval(line)
 	}
 	return nil
 }

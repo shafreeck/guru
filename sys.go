@@ -8,7 +8,6 @@ import (
 )
 
 // run sys command in the interactive mode
-
 func runCommand(line string) (string, error) {
 	cmd := exec.Command("sh", "-c", line)
 	output, err := cmd.CombinedOutput()
@@ -18,35 +17,25 @@ func runCommand(line string) (string, error) {
 	return string(output), err
 }
 
-func cmdCompleter(prefix []rune, pos int) ([][]rune, int) {
-	line := string(prefix)
-	line = strings.TrimLeft(line, " ")
-	if line == "" {
-		return nil, 0
-	}
-
-	// not a system command
-	if line[0] != '$' {
-		return nil, 0
-	}
-
-	line = strings.TrimLeft(line[1:], " ")
+func sysCommandComplete(line []rune, pos int) ([][]rune, int) {
+	prefix := string(line)
+	prefix = strings.TrimLeft(prefix[1:], " ")
 
 	var suggests [][]rune
-	fields := strings.Fields(line)
+	fields := strings.Fields(prefix)
 	// lookup the file in current path
-	if strings.HasSuffix(line, " ") || len(fields) > 1 {
-		var prefix string
-		if len(fields) > 1 {
-			prefix = fields[len(fields)-1]
+	if strings.HasSuffix(prefix, " ") || len(fields) > 1 {
+		var p string
+		if len(fields) > 1 && !strings.HasSuffix(prefix, " ") {
+			p = fields[len(fields)-1]
 		}
 		entries, _ := os.ReadDir("./")
 		for _, entry := range entries {
-			if strings.HasPrefix(entry.Name(), prefix) {
-				suggests = append(suggests, []rune(strings.TrimPrefix(entry.Name(), prefix)))
+			if strings.HasPrefix(entry.Name(), p) {
+				suggests = append(suggests, []rune(strings.TrimPrefix(entry.Name(), p)))
 			}
 		}
-		return suggests, len(prefix)
+		return suggests, len(p)
 	}
 
 	// lookup the commands in $PATH
@@ -54,8 +43,8 @@ func cmdCompleter(prefix []rune, pos int) ([][]rune, int) {
 	for _, path := range paths {
 		entries, _ := os.ReadDir(path)
 		for _, entry := range entries {
-			if strings.HasPrefix(entry.Name(), line) {
-				suggests = append(suggests, []rune(strings.TrimPrefix(entry.Name(), line)))
+			if strings.HasPrefix(entry.Name(), prefix) {
+				suggests = append(suggests, []rune(strings.TrimPrefix(entry.Name(), prefix)))
 			}
 		}
 	}

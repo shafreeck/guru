@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/google/uuid"
 	"github.com/shafreeck/guru/tui"
 )
@@ -26,7 +26,7 @@ type record struct {
 
 type history struct {
 	offset  int64 // the offset of the write cursor
-	w       io.ReadWriteCloser
+	w       io.WriteCloser
 	records []*record
 }
 
@@ -50,8 +50,10 @@ func (h *history) append(op string, v *Message) error {
 	return nil
 }
 
-type session struct {
+type Session struct {
+	out       CommandOutput
 	mm        messageManager
+	highlight lipgloss.Style
 	dir       string
 	sid       string
 	stack     []string
@@ -59,11 +61,42 @@ type session struct {
 	history   history
 }
 
-func newSession(dir string) *session {
-	return &session{dir: dir}
+type SessionOption func(s *Session)
+
+func WithCommandOutput(out CommandOutput) SessionOption {
+	return func(s *Session) {
+		s.out = out
+	}
 }
 
-func (s *session) open(sid string) error {
+func WithHighlightStyle(style lipgloss.Style) SessionOption {
+	return func(s *Session) {
+		s.highlight = style
+	}
+}
+
+func NewSession(dir string, opts ...SessionOption) *Session {
+	blue := lipgloss.NewStyle().Foreground(lipgloss.Color("#2da9d2"))
+
+	s := &Session{
+		dir:       dir,
+		out:       &commandStdout{},
+		highlight: blue,
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	// Use session's CommandOutput
+	s.mm.out = s.out
+	// Register the session and message commands
+	s.registerBuiltinCommands()
+
+	return s
+}
+
+func (s *Session) Open(sid string) error {
 	s.sid = sid
 	if s.sid == "" {
 		// open a new session
@@ -93,32 +126,32 @@ func (s *session) open(sid string) error {
 	return nil
 }
 
-func (s *session) remove(sid string) error {
+func (s *Session) Remove(sid string) error {
 	return os.Remove(path.Join(s.dir, sid))
 }
 
-func (s *session) close() {
+func (s *Session) Close() {
 	// nothing saved, delete the session
 	if len(s.history.records) == 0 {
-		s.remove(s.sid)
+		s.Remove(s.sid)
 	}
 	if s.history.w != nil {
 		s.history.w.Close()
 	}
 }
 
-func (s *session) append(m *Message) {
+func (s *Session) Append(m *Message) {
 	s.mm.append(m)
 	if err := s.history.append(":append", m); err != nil {
-		fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
+		s.out.Errorln(err)
 	}
 }
 
-func (s *session) messages() []*Message {
+func (s *Session) Messages() []*Message {
 	return s.mm.messages
 }
 
-func (s *session) load() error {
+func (s *Session) load() error {
 	f, err := os.Open(path.Join(s.dir, s.sid))
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -140,41 +173,52 @@ func (s *session) load() error {
 	return nil
 }
 
-func (s *session) replay(records []*record) {
+func (s *Session) replay(records []*record) {
 	render := &tui.JSONRenderer{}
-	fmt.Fprintln(tui.Stdout, blue.Render("replay session:", s.sid))
+	s.out.Println("replay session:", s.sid)
 	for _, r := range records {
 		args := strings.Fields(r.Op)
-		fmt.Fprint(tui.Stdout, blue.Render(r.Op), " ")
+		s.out.Print(r.Op, " ")
 		if r.Msg != nil {
-			data, _ := json.Marshal(r.Msg)
-			data, _ = render.Render(data)
-			fmt.Fprintln(tui.Stdout, string(data))
+			data, err := json.Marshal(r.Msg)
+			if err != nil {
+				s.out.Errorln(err)
+				return
+			}
+			text, err := render.Render(string(data))
+			if err != nil {
+				s.out.Errorln(err)
+				return
+			}
+
+			s.out.Println(text)
 			args = append(args, "--role", string(r.Msg.Role), r.Msg.Content)
 		} else {
-			fmt.Fprintln(tui.Stdout)
+			s.out.Println()
 		}
-		builtins.Launch(context.Background(), args)
+		builtins.Launch(args)
 	}
 }
 
-func (s *session) list() {
+func (s *Session) listCommand() (_ string) {
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
-		fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
+		s.out.Errorln(err)
 	}
 	for i, entry := range entries {
 		if entry.Name() == s.sid {
-			fmt.Fprint(tui.Stdout, blue.Render("  *  "))
-		} else {
-			fmt.Fprintf(tui.Stdout, "%3d. ", i)
+			s.out.StylePrintf(s.highlight, "  *  %s", entry.Name())
+			s.out.Println()
+			continue
 		}
-		fmt.Fprintln(tui.Stdout, entry.Name())
+		s.out.Printf("%3d. ", i)
+		s.out.Println(entry.Name())
 	}
+	return
 }
 
 // listen on builtin commands
-func (s *session) onCommandEvent(args []string) {
+func (s *Session) OnCommand(args []string) {
 	op := strings.Join(args, " ")
 	switch {
 	case strings.HasPrefix(op, ":reset"):
@@ -190,20 +234,19 @@ func (s *session) onCommandEvent(args []string) {
 	}
 }
 
-func (s *session) listenOnBuiltins() {
-	builtins.sess = s
-}
-
-func (s *session) switchSession(sid string) {
-	s.close()
-	builtins.sess = nil
+func (s *Session) switchSession(sid string) {
+	s.Close()
 	s.mm.messages = nil // clear the messages
 	s.history = history{}
-	s.open(sid)
-	builtins.sess = s
+
+	// remove listener when replaying a new session
+	builtins.RemoveListener(s)
+	defer builtins.AddListener(s)
+
+	s.Open(sid)
 }
 
-func (s *session) switchCommand() {
+func (s *Session) switchCommand() (_ string) {
 	opts := struct {
 		SID string `cortana:"sid"`
 	}{}
@@ -217,14 +260,15 @@ func (s *session) switchCommand() {
 	}
 
 	if _, err := os.Stat(path.Join(s.dir, opts.SID)); err != nil {
-		fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
+		s.out.Errorln(err)
 		return
 	}
 
 	s.switchSession(opts.SID)
+	return
 }
 
-func (s *session) removeCommand() {
+func (s *Session) removeCommand() (_ string) {
 	opts := struct {
 		SID string `cortana:"sid"`
 	}{}
@@ -236,12 +280,13 @@ func (s *session) removeCommand() {
 		builtins.Usage()
 		return
 	}
-	if err := s.remove(opts.SID); err != nil {
-		fmt.Fprintln(tui.Stdout, red.Render(err.Error()))
+	if err := s.Remove(opts.SID); err != nil {
+		s.out.Errorln(err)
 	}
+	return
 }
 
-func (s *session) new(ctx context.Context) string {
+func (s *Session) newCommand() string {
 	opts := struct {
 		SID   string   `cortana:"--session-id, -s, ,the session id"`
 		Texts []string `cortana:"text"`
@@ -252,18 +297,18 @@ func (s *session) new(ctx context.Context) string {
 
 	if opts.SID != "" {
 		if _, err := os.Stat(path.Join(s.dir, opts.SID)); err == nil {
-			fmt.Fprintln(tui.Stdout, red.Render("session \""+opts.SID+"\" exist"))
+			s.out.Errorln("session \"" + opts.SID + "\" exist")
 			return ""
 		}
 	}
 
 	s.switchSession(opts.SID)
-	fmt.Fprintln(tui.Stdout, blue.Render("session "+s.sid+" created"))
+	s.out.Println("session " + s.sid + " created")
 
 	return strings.Join(opts.Texts, " ")
 }
 
-func (s *session) shrink() {
+func (s *Session) shrinkCommand() (_ string) {
 	opts := struct {
 		Expr string `cortana:"expr"`
 	}{}
@@ -280,7 +325,8 @@ func (s *session) shrink() {
 
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
-		fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
+		s.out.Errorln(err)
+		return
 	}
 	for _, entry := range entries {
 		ids = append(ids, entry.Name())
@@ -293,7 +339,8 @@ func (s *session) shrink() {
 	if v := parts[0]; v != "" {
 		begin, err = strconv.Atoi(parts[0])
 		if err != nil {
-			fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
+			s.out.Errorln(err)
+			return
 		}
 		if begin >= size {
 			return
@@ -305,7 +352,8 @@ func (s *session) shrink() {
 		if v := parts[1]; v != "" {
 			end, err = strconv.Atoi(parts[1])
 			if err != nil {
-				fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
+				s.out.Errorln(err)
+				return
 			}
 		} else {
 			end = size
@@ -320,26 +368,31 @@ func (s *session) shrink() {
 		if sid == s.sid {
 			continue
 		}
-		s.remove(sid)
-		fmt.Fprintln(tui.Stdout, blue.Render(sid+" removed"))
+		s.Remove(sid)
+		s.out.Println(sid + " removed")
 	}
+	return
 }
 
-func (s *session) historyCommand() {
+func (s *Session) historyCommand() (_ string) {
 	render := tui.JSONRenderer{}
 	for i, record := range s.history.records {
 		data, err := json.Marshal(record)
 		if err != nil {
-			fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
+			s.out.Errorln(err)
+			return
 		}
-		text, err := render.Render(data)
+		text, err := render.Render(string(data))
 		if err != nil {
-			fmt.Fprintln(tui.Stderr, red.Render(err.Error()))
+			s.out.Errorln(err)
+			return
 		}
-		fmt.Fprintf(tui.Stdout, "%3d. %s\n", i, string(text))
+		s.out.Printf("%3d. %s", i, text)
+		s.out.Println()
 	}
+	return
 }
-func (s *session) stackPush(ctx context.Context) string {
+func (s *Session) stackPushCommand() string {
 	opts := struct {
 		SID   string   `cortana:"--session-id, -s, ,the session id"`
 		Texts []string `cortana:"text"`
@@ -351,11 +404,11 @@ func (s *session) stackPush(ctx context.Context) string {
 	// switch to the session
 	s.switchSession(opts.SID)
 	s.stack = append(s.stack, s.sid)
-	fmt.Fprintln(tui.Stdout, blue.Render("step in session: "+s.sid))
+	s.out.Println("step in session: " + s.sid)
 
 	return strings.Join(opts.Texts, " ")
 }
-func (s *session) stackPop() {
+func (s *Session) stackPopCommand() (_ string) {
 	size := len(s.stack)
 	// left the current session
 	if size == 1 {
@@ -368,8 +421,9 @@ func (s *session) stackPop() {
 	if len(s.stack) > 0 {
 		s.switchSession(s.stack[size-1])
 	}
+	return
 }
-func (s *session) stackShow() {
+func (s *Session) stackShowCommand() (_ string) {
 	out := bytes.NewBuffer(nil)
 	total := len("chat-1680190522751-43e17bad-c0f1-4e2d-9902-db5d1ce965d2")
 	truncated := len("chat-1680190522751-43e17bad-c0f1-4e2d-9902-")
@@ -380,21 +434,22 @@ func (s *session) stackShow() {
 		if len(sid) == total {
 			sid = sid[truncated:]
 		}
-		fmt.Fprint(out, blue.Render(fmt.Sprintf(" > %s", sid)))
+		out.WriteString(fmt.Sprintf(" > %s", sid))
 	}
-	fmt.Fprintln(tui.Stdout, out.String())
+	s.out.Println(out.String())
+	return
 }
 
-func (s *session) registerCommands() {
-	builtins.AddCommand(":session new", builtin(s.new), "create a new session")
+func (s *Session) registerBuiltinCommands() {
+	builtins.AddCommand(":session new", s.newCommand, "create a new session")
 	builtins.AddCommand(":session remove", s.removeCommand, "delete a session")
-	builtins.AddCommand(":session shrink", s.shrink, "shrink sessions")
-	builtins.AddCommand(":session list", s.list, "list sessions")
+	builtins.AddCommand(":session shrink", s.shrinkCommand, "shrink sessions")
+	builtins.AddCommand(":session list", s.listCommand, "list sessions")
 	builtins.AddCommand(":session switch", s.switchCommand, "switch a session")
 	builtins.AddCommand(":session history", s.historyCommand, "print history of current session")
-	builtins.AddCommand(":session stack", s.stackShow, "show the session stack")
-	builtins.AddCommand(":session stack push", builtin(s.stackPush), "create a new session, and stash the current")
-	builtins.AddCommand(":session stack pop", s.stackPop, "pop out current session")
+	builtins.AddCommand(":session stack", s.stackShowCommand, "show the session stack")
+	builtins.AddCommand(":session stack push", s.stackPushCommand, "create a new session, and stash the current")
+	builtins.AddCommand(":session stack pop", s.stackPopCommand, "pop out current session")
 
 	builtins.Alias(":new", ":session new")
 	builtins.Alias(":stack", ":session stack")
@@ -402,5 +457,7 @@ func (s *session) registerCommands() {
 	builtins.Alias(">", ":session stack push")
 	builtins.Alias("<", ":session stack pop")
 	builtins.Alias(":session clear", ":session shrink 0:0")
-	s.mm.registerMessageCommands()
+
+	builtins.AddListener(s)
+	s.mm.registerBuiltinCommands()
 }
