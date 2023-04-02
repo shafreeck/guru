@@ -180,7 +180,10 @@ func (g *Guru) ChatCommand() {
 	}
 
 	// Evaluate first before entering interactive mode
-	eval(opts.Text)
+	if opts.System != "" || opts.Text != "" ||
+		opts.Stdin || opts.Filename != "" {
+		eval(opts.Text)
+	}
 
 	if opts.NonInteractive {
 		return
