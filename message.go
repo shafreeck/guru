@@ -182,5 +182,6 @@ func (m *messageManager) registerBuiltinCommands() {
 	builtins.Alias(":ls", ":message list")
 	builtins.Alias(":show", ":message show")
 	builtins.Alias(":reset", ":message shrink 0:0")
+	builtins.Alias(":shrink", ":message shrink")
 	builtins.Alias(":append", ":message append")
 }

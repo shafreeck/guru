@@ -97,6 +97,8 @@ func NewSession(dir string, opts ...SessionOption) *Session {
 }
 
 func (s *Session) Open(sid string) error {
+	builtins.RemoveListener(s)
+	defer builtins.AddListener(s)
 	s.sid = sid
 	if s.sid == "" {
 		// open a new session
@@ -238,11 +240,6 @@ func (s *Session) switchSession(sid string) {
 	s.Close()
 	s.mm.messages = nil // clear the messages
 	s.history = history{}
-
-	// remove listener when replaying a new session
-	builtins.RemoveListener(s)
-	defer builtins.AddListener(s)
-
 	s.Open(sid)
 }
 
@@ -458,6 +455,5 @@ func (s *Session) registerBuiltinCommands() {
 	builtins.Alias("<", ":session stack pop")
 	builtins.Alias(":session clear", ":session shrink 0:0")
 
-	builtins.AddListener(s)
 	s.mm.registerBuiltinCommands()
 }
