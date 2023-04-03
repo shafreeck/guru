@@ -53,13 +53,13 @@ func WithStderr(stderr io.Writer) GuruOption {
 	}
 }
 
-func New() *Guru {
+func New(opts ...GuruOption) *Guru {
 	errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#e61919"))       //red
 	textStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#79b3ec"))      //blue
 	highlightStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#0aacf8")) //blue
 	promptStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#13f911"))    //green
 
-	return &Guru{
+	g := &Guru{
 		errStyle:       errStyle,
 		textStyle:      textStyle,
 		promptStyle:    promptStyle,
@@ -68,6 +68,13 @@ func New() *Guru {
 		stdout:         os.Stdout,
 		stderr:         os.Stderr,
 	}
+
+	// Apply the options
+	for _, opt := range opts {
+		opt(g)
+	}
+
+	return g
 }
 
 type ChatCommandOptions struct {
