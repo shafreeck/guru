@@ -34,7 +34,7 @@ func NewChatCommand(sess *Session, ap *AwesomePrompts, httpCli *http.Client, opt
 
 func (c *ChatCommand) Talk(opts *ChatOptions) {
 	if opts.System != "" {
-		c.sess.Append(&Message{Role: User, Content: opts.Text})
+		c.sess.Append(&Message{Role: User, Content: opts.System})
 	}
 
 	if opts.Text != "" {
