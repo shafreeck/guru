@@ -248,7 +248,8 @@ func (g *Guru) ConfigCommand() {
 	}
 
 	// interactive to create the config
-	if opts.Init || os.IsNotExist(err) {
+	if (opts.Init || os.IsNotExist(err)) &&
+		opts.Key == "" && opts.Value == "" {
 		// ask for openai-api-key and socks5
 		vals, err := tui.Display[tui.Model[[]string], []string](context.Background(),
 			tui.NewConfigInputModel("openai-api-key(required)", "socks5(if have)"))
@@ -277,7 +278,7 @@ func (g *Guru) ConfigCommand() {
 		return
 	}
 
-	var m map[string]interface{}
+	m := make(map[string]interface{})
 	if err := yaml.Unmarshal(data, &m); err != nil {
 		g.Fatalln(err)
 	}
