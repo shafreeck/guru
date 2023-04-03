@@ -11,13 +11,16 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/alecthomas/chroma/quick"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/ssh"
 	"github.com/shafreeck/cortana"
 	"golang.org/x/net/proxy"
+	"gopkg.in/yaml.v3"
 )
 
 // Guru is the enter of command line
@@ -78,19 +81,19 @@ func New(opts ...GuruOption) *Guru {
 }
 
 type ChatCommandOptions struct {
-	ChatGPTOptions
-	APIKey            string        `cortana:"--openai-api-key, -, -, set your openai api key"`
-	Socks5            string        `cortana:"--socks5, -, , set the socks5 proxy"`
-	Timeout           time.Duration `cortana:"--timeout, -, 180s, the timeout duration for a request"`
-	System            string        `cortana:"--system, -,, the optional system prompt for initializing the chatgpt"`
-	Filename          string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)"`
-	Verbose           bool          `cortana:"--verbose, -v, false, print verbose messages"`
-	Stdin             bool          `cortana:"--stdin, -, false, read from stdin, works as '-f --'"`
-	NonInteractive    bool          `cortana:"--non-interactive, -n, false, chat in none interactive mode"`
-	DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded"`
-	Dir               string        `cortana:"--dir,-, ~/.guru, the guru directory"`
-	SessionID         string        `cortana:"--session-id, -s,, the session id"`
-	Text              string
+	ChatGPTOptions    `yaml:"chatgpt"`
+	APIKey            string        `cortana:"--openai-api-key, -, -, set your openai api key" yaml:"openai-api-key,omitempty"`
+	Socks5            string        `cortana:"--socks5, -, , set the socks5 proxy" yaml:"socks5,omitempty"`
+	Timeout           time.Duration `cortana:"--timeout, -, 180s, the timeout duration for a request"  yaml:"timeout,omitempty"`
+	System            string        `cortana:"--system, -,, the optional system prompt for initializing the chatgpt" yaml:"system,omitempty"`
+	Filename          string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)" yaml:"filename,omitempty"`
+	Verbose           bool          `cortana:"--verbose, -v, false, print verbose messages" yaml:"verbose,omitempty"`
+	Stdin             bool          `cortana:"--stdin, -, false, read from stdin, works as '-f --'" yaml:"stdin,omitempty"`
+	NonInteractive    bool          `cortana:"--non-interactive, -n, false, chat in none interactive mode" yaml:"non-interactive,omitempty"`
+	DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded" yaml:"disable-auto-shrink,omitempty"`
+	Dir               string        `cortana:"--dir,-, ~/.guru, the guru directory" yaml:"dir,omitempty"`
+	SessionID         string        `cortana:"--session-id, -s,, the session id" yaml:"session-id,omitempty"`
+	Text              string        `cortana:"text, -" yaml:"-"`
 }
 
 // chatCommand chats with ChatGPT
@@ -225,6 +228,67 @@ func (g *Guru) ServeSSH() {
 	defer func() { cancel() }()
 	if err := gs.s.Shutdown(ctx); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
 		log.Fatal(err)
+	}
+}
+func (g *Guru) ConfigCommand() {
+	opts := struct {
+		File  string `cortana:"--file, -f, ~/.guru/config, the configuration file"`
+		Key   string `cortana:"key, -"`
+		Value string `cortana:"val, -"`
+	}{}
+	cortana.Parse(&opts)
+
+	opts.File = expandPath(opts.File)
+
+	data, err := os.ReadFile(opts.File)
+	if err != nil && !os.IsNotExist(err) {
+		g.Fatalln(err)
+	}
+
+	// show the configrations
+	if opts.Key == "" {
+		quick.Highlight(g.stdout, string(data), "yaml", "terminal256", "monokai")
+		return
+	}
+
+	var m map[string]interface{}
+	if err := yaml.Unmarshal(data, &m); err != nil {
+		g.Fatalln(err)
+	}
+	original := m
+
+	key := opts.Key
+	fields := strings.Split(opts.Key, ".")
+	if len(fields) == 2 {
+		if m[fields[0]] == nil {
+			m[fields[0]] = make(map[string]interface{})
+		}
+		m = m[fields[0]].(map[string]interface{})
+		key = fields[1]
+	}
+
+	// get the key and return
+	if opts.Value == "" {
+		fmt.Fprintln(g.stdout, m[key])
+		return
+	}
+
+	var val interface{}
+	val = opts.Value
+	if opts.Value == "true" {
+		val = true
+	} else if opts.Value == "false" {
+		val = false
+	}
+	m[key] = val
+
+	// marshal the original map
+	data, err = yaml.Marshal(original)
+	if err != nil {
+		g.Fatalln(err)
+	}
+	if err := os.WriteFile(opts.File, data, 0644); err != nil {
+		g.Fatalln(err)
 	}
 }
 
