@@ -19,6 +19,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/ssh"
 	"github.com/shafreeck/cortana"
+	"github.com/shafreeck/guru/tui"
 	"golang.org/x/net/proxy"
 	"gopkg.in/yaml.v3"
 )
@@ -233,6 +234,7 @@ func (g *Guru) ServeSSH() {
 func (g *Guru) ConfigCommand() {
 	opts := struct {
 		File  string `cortana:"--file, -f, ~/.guru/config, the configuration file"`
+		Init  bool   `cortana:"--init, -, false, initialize the configuration file"`
 		Key   string `cortana:"key, -"`
 		Value string `cortana:"val, -"`
 	}{}
@@ -243,6 +245,30 @@ func (g *Guru) ConfigCommand() {
 	data, err := os.ReadFile(opts.File)
 	if err != nil && !os.IsNotExist(err) {
 		g.Fatalln(err)
+	}
+
+	// interactive to create the config
+	if opts.Init || os.IsNotExist(err) {
+		// ask for openai-api-key and socks5
+		vals, err := tui.Display[tui.Model[[]string], []string](context.Background(),
+			tui.NewConfigInputModel("openai-api-key(required)", "socks5(if have)"))
+		if err != nil {
+			g.Fatalln(err)
+		}
+		if vals[0] == "" && vals[1] == "" {
+			return
+		}
+		data, err := yaml.Marshal(ChatCommandOptions{
+			APIKey: vals[0],
+			Socks5: vals[1],
+		})
+		if err != nil {
+			g.Fatalln(err)
+		}
+		if err := os.WriteFile(opts.File, data, 0644); err != nil {
+			g.Fatalln(err)
+		}
+		return
 	}
 
 	// show the configrations
