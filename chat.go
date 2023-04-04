@@ -184,7 +184,7 @@ retry:
 		c.sess.out.Print(content)
 	}
 	// append the response
-	c.sess.Append(&Message{Role: User, Content: content})
+	c.sess.Append(&Message{Role: Assistant, Content: content})
 
 	return content, nil
 }
