@@ -127,6 +127,15 @@ func (g *Guru) ChatCommand() {
 		g.Fatalln(err)
 	}
 
+	// find the prompt by its act
+	if opts.Prompt != "" {
+		p := ap.PromptText(opts.Prompt)
+		if p == "" {
+			g.Fatalln("prompt not found: ", opts.Prompt)
+		}
+		opts.Prompt = p
+	}
+
 	// read from stdin or file
 	var err error
 	var content string
@@ -150,18 +159,8 @@ func (g *Guru) ChatCommand() {
 		sess.Append(&Message{Role: User, Content: content})
 	}
 
-	// enter non-interactive mode if stdout is not a terminal
 	if !readline.IsTerminal(int(os.Stdout.Fd())) {
 		opts.NonInteractive = true
-	}
-
-	// find the prompt by its act
-	if opts.Prompt != "" {
-		p := ap.PromptText(opts.Prompt)
-		if p == "" {
-			g.Fatalln("prompt not found: ", opts.Prompt)
-		}
-		opts.Prompt = p
 	}
 
 	// new a ChatGPT client and run the command

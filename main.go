@@ -21,7 +21,11 @@ func main() {
 	cortana.AddCommand("config", g.ConfigCommand, "configure guru")
 	cortana.AddCommand("serve ssh", g.ServeSSH, "serve as an ssh app")
 
-	cortana.Alias("commit message", `chat --prompt committer"`)
-	cortana.Alias("cheatsheet", `chat --prompt cheatsheet"`)
+	// Avoid using same word of command and prompt name, or it cause confused for cortana.
+	// Ex. alias cheatsheet = "chat --prompt cheatsheet", when run with `chat --prompt cheatsheet`,
+	// the part of `chat cheatsheet` will be recorgnized as `chat cheatsheet` alias, and `--prompt`
+	// is the flag
+	cortana.Alias("commit", `chat --prompt committer`)
+	cortana.Alias("cheat", `chat --prompt cheatsheet`)
 	cortana.Launch()
 }
