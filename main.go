@@ -2,24 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"os"
 
-	"github.com/chzyer/readline"
 	"github.com/shafreeck/cortana"
 	"gopkg.in/yaml.v3"
 )
-
-// guruCommand a shortcut for "guru chat", it checks the stdin,
-// if it is a terminal, it shows the usage and exit.
-// oterwise, it lanunches the "guru chat" command to handle the
-// texts from stdin
-func guruCommand() {
-	if readline.IsTerminal(int(os.Stdin.Fd())) && len(cortana.Args()) == 0 {
-		cortana.Usage()
-		return
-	}
-	New().ChatCommand()
-}
 
 func main() {
 	g := New()
@@ -30,7 +16,7 @@ func main() {
 	cortana.AddConfig("~/.guru/config", cortana.UnmarshalFunc(yaml.Unmarshal))
 	cortana.Use(cortana.ConfFlag("--conf", "-c", unmarshaler))
 
-	cortana.AddRootCommand(guruCommand)
+	cortana.AddRootCommand(g.ChatCommand)
 	cortana.AddCommand("chat", g.ChatCommand, "chat with ChatGPT")
 	cortana.AddCommand("config", g.ConfigCommand, "configure guru")
 	cortana.AddCommand("serve ssh", g.ServeSSH, "serve as an ssh app")
