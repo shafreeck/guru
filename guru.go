@@ -92,6 +92,7 @@ type ChatCommandOptions struct {
 	Filename          string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)" yaml:"filename,omitempty"`
 	Verbose           bool          `cortana:"--verbose, -v, false, print verbose messages" yaml:"verbose,omitempty"`
 	Stdin             bool          `cortana:"--stdin, -, false, read from stdin, works as '-f --'" yaml:"stdin,omitempty"`
+	Execute           bool          `cortana:"--exec, -e,, execute what the ai returned in the shell. notice! you should know the risk to enable this flag."`
 	NonInteractive    bool          `cortana:"--non-interactive, -n, false, chat in none interactive mode" yaml:"non-interactive,omitempty"`
 	DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded" yaml:"disable-auto-shrink,omitempty"`
 	Dir               string        `cortana:"--dir,-, ~/.guru, the guru directory" yaml:"dir,omitempty"`
@@ -207,7 +208,16 @@ func (g *Guru) ChatCommand() {
 			NonInteractive:    opts.NonInteractive,
 			DisableAutoShrink: opts.DisableAutoShrink,
 		}
-		cc.Talk(copts)
+		reply, err := cc.Talk(copts)
+		if err != nil {
+			g.Errorln(err)
+			return
+		}
+
+		// handle post talk, the action is executing the reply by far
+		if opts.Execute {
+			g.execute(reply)
+		}
 	}
 
 	// Evaluate first before entering interactive mode
@@ -339,6 +349,23 @@ func (g *Guru) ConfigCommand() {
 	if err := os.WriteFile(opts.File, data, 0644); err != nil {
 		g.Fatalln(err)
 	}
+}
+
+// execute a command in shell
+func (g *Guru) execute(cmd string) {
+	confirmed, err := tui.Display[tui.Model[bool], bool](context.Background(), tui.NewConfimModel(cmd))
+	if err != nil {
+		g.Errorln(err)
+	}
+
+	if !confirmed {
+		return
+	}
+	out, err := runCommand(cmd)
+	if err != nil {
+		g.Errorln(err)
+	}
+	fmt.Fprintln(g.stdout, out)
 }
 
 func (g *Guru) readStdin() (string, error) {

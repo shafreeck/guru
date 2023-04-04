@@ -33,7 +33,7 @@ func NewChatCommand(sess *Session, ap *AwesomePrompts, httpCli *http.Client, opt
 	return &ChatCommand{c: c, sess: sess, ap: ap, isVerbose: opts.Verbose}
 }
 
-func (c *ChatCommand) Talk(opts *ChatOptions) {
+func (c *ChatCommand) Talk(opts *ChatOptions) (string, error) {
 	if opts.System != "" {
 		c.sess.Append(&Message{Role: User, Content: opts.System})
 	}
@@ -48,13 +48,13 @@ func (c *ChatCommand) Talk(opts *ChatOptions) {
 
 	// return if there is nothing to ask
 	if len(c.sess.Messages()) == 0 {
-		return
+		return "", nil
 	}
 
 	if opts.Stream {
-		c.stream(context.Background(), opts)
+		return c.stream(context.Background(), opts)
 	} else {
-		c.ask(context.Background(), opts)
+		return c.ask(context.Background(), opts)
 	}
 }
 func (c *ChatCommand) verbose(text string) {
@@ -63,7 +63,7 @@ func (c *ChatCommand) verbose(text string) {
 	}
 	c.sess.out.Println(text)
 }
-func (c *ChatCommand) ask(ctx context.Context, opts *ChatOptions) error {
+func (c *ChatCommand) ask(ctx context.Context, opts *ChatOptions) (string, error) {
 	q := &Question{
 		ChatGPTOptions: opts.ChatGPTOptions,
 		Messages:       c.sess.Messages(),
@@ -73,16 +73,16 @@ func (c *ChatCommand) ask(ctx context.Context, opts *ChatOptions) error {
 			return c.c.Ask(ctx, q)
 		}))
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// maybe ctrl+c interrupted
 	if ans == nil {
-		return nil
+		return "", nil
 	}
 
 	if ans.Error.Message != "" {
-		return fmt.Errorf(ans.Error.Message)
+		return "", fmt.Errorf(ans.Error.Message)
 	}
 
 	out := bytes.NewBuffer(nil)
@@ -98,7 +98,7 @@ func (c *ChatCommand) ask(ctx context.Context, opts *ChatOptions) error {
 	c.verbose("render with markdown")
 	text, err := tui.Display[tui.Model[string], string](ctx, tui.NewMarkdownModel(out.String()))
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Print to output if the tui is not renderable
@@ -112,10 +112,10 @@ func (c *ChatCommand) ask(ctx context.Context, opts *ChatOptions) error {
 			ans.Usage.PromptTokens, ans.Usage.CompletionTokens, ans.Usage.TotalTokens)
 	}
 
-	return nil
+	return text, nil
 }
 
-func (c *ChatCommand) stream(ctx context.Context, opts *ChatOptions) error {
+func (c *ChatCommand) stream(ctx context.Context, opts *ChatOptions) (string, error) {
 retry:
 	q := &Question{
 		ChatGPTOptions: opts.ChatGPTOptions,
@@ -127,11 +127,11 @@ retry:
 			return c.c.Stream(ctx, q)
 		}))
 	if err != nil {
-		return err
+		return "", err
 	}
 	// ctrl+c interrupted
 	if s == nil {
-		return nil
+		return "", nil
 	}
 
 	// handle the stream and print the delta text, the whole
@@ -149,7 +149,7 @@ retry:
 	// The token limit exceeded. auto shrink and retry if enabled
 	if c.IsTokenExceeded(err) {
 		if opts.DisableAutoShrink {
-			return fmt.Errorf("%w\n\nUse `:messages shrink <expr>` to reduce the tokens", err)
+			return "", fmt.Errorf("%w\n\nUse `:messages shrink <expr>` to reduce the tokens", err)
 		}
 
 		n := c.sess.mm.autoShrink()
@@ -158,7 +158,7 @@ retry:
 		// This is the case that the last message is large enough
 		// to exceed the token limit.
 		if n == 0 {
-			return err
+			return "", err
 		}
 
 		word := "message"
@@ -169,7 +169,7 @@ retry:
 		goto retry
 	}
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Print to output if the tui is not renderable
@@ -180,7 +180,7 @@ retry:
 	// append the response
 	c.sess.Append(&Message{Role: User, Content: content})
 
-	return nil
+	return content, nil
 }
 
 func (c *ChatCommand) IsTokenExceeded(err error) bool {
