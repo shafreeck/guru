@@ -14,7 +14,7 @@ import (
 // oterwise, it lanunches the "guru chat" command to handle the
 // texts from stdin
 func guruCommand() {
-	if readline.IsTerminal(int(os.Stdin.Fd())) {
+	if readline.IsTerminal(int(os.Stdin.Fd())) && len(cortana.Args()) == 0 {
 		cortana.Usage()
 		return
 	}
