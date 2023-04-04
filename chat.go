@@ -15,6 +15,7 @@ type ChatOptions struct {
 	ChatGPTOptions
 	System            string
 	Prompt            string
+	Oneshot           bool
 	Verbose           bool
 	NonInteractive    bool
 	DisableAutoShrink bool
@@ -34,11 +35,12 @@ func NewChatCommand(sess *Session, ap *AwesomePrompts, httpCli *http.Client, opt
 }
 
 func (c *ChatCommand) Talk(opts *ChatOptions) (string, error) {
-	if opts.System != "" {
-		c.sess.Append(&Message{Role: User, Content: opts.System})
+	if opts.Oneshot {
+		c.sess.ClearMessage()
 	}
 
-	if opts.Prompt != "" {
+	// submit prompt each time in oneshot mode
+	if opts.Prompt != "" && opts.Oneshot {
 		c.sess.Append(&Message{Role: User, Content: opts.Prompt})
 	}
 

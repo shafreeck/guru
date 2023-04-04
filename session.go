@@ -152,6 +152,9 @@ func (s *Session) Append(m *Message) {
 func (s *Session) Messages() []*Message {
 	return s.mm.messages
 }
+func (s *Session) ClearMessage() {
+	s.mm.messages = nil
+}
 
 func (s *Session) load() error {
 	f, err := os.Open(path.Join(s.dir, s.sid))

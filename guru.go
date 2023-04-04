@@ -93,6 +93,7 @@ type ChatCommandOptions struct {
 	Verbose           bool          `cortana:"--verbose, -v, false, print verbose messages" yaml:"verbose,omitempty"`
 	Stdin             bool          `cortana:"--stdin, -, false, read from stdin, works as '-f --'" yaml:"stdin,omitempty"`
 	Execute           bool          `cortana:"--exec, -e,, execute what the ai returned in the shell. notice! you should know the risk to enable this flag."`
+	Oneshot           bool          `cortana:"--oneshot, -,, avoid maintaining the context, submit the user input and prompt each time"`
 	NonInteractive    bool          `cortana:"--non-interactive, -n, false, chat in none interactive mode" yaml:"non-interactive,omitempty"`
 	DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded" yaml:"disable-auto-shrink,omitempty"`
 	Dir               string        `cortana:"--dir,-, ~/.guru, the guru directory" yaml:"dir,omitempty"`
@@ -135,6 +136,14 @@ func (g *Guru) ChatCommand() {
 			g.Fatalln("prompt not found: ", opts.Prompt)
 		}
 		opts.Prompt = p
+	}
+
+	// add the system and prompt message
+	if opts.System != "" {
+		sess.Append(&Message{Role: User, Content: opts.System})
+	}
+	if opts.Prompt != "" {
+		sess.Append(&Message{Role: User, Content: opts.Prompt})
 	}
 
 	// read from stdin or file
@@ -204,6 +213,7 @@ func (g *Guru) ChatCommand() {
 			Text:              text,
 			System:            opts.System,
 			Prompt:            opts.Prompt,
+			Oneshot:           opts.Oneshot,
 			Verbose:           opts.Verbose,
 			NonInteractive:    opts.NonInteractive,
 			DisableAutoShrink: opts.DisableAutoShrink,
@@ -225,7 +235,15 @@ func (g *Guru) ChatCommand() {
 		opts.Stdin || opts.Filename != "" {
 
 		text := strings.Join(opts.Texts, " ")
+
+		// When in oneshot mode, the first talk should supply all
+		// the messages from system, stdin, prompts or text.
+		// To avoid cleaning the message above, we unset oneshot flag
+		// first time, and then restore it before entering the REPL.
+		restore := opts.Oneshot
+		opts.Oneshot = false
 		eval(text)
+		opts.Oneshot = restore
 	}
 
 	if opts.NonInteractive {
