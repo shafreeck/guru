@@ -27,12 +27,15 @@ import (
 
 // Guru is the enter of command line
 type Guru struct {
+	// the output styles
 	textStyle      lipgloss.Style
 	errStyle       lipgloss.Style
 	promptStyle    lipgloss.Style
 	highlightStyle lipgloss.Style
 
 	isVerbose bool
+	lp        *LivePrompt
+	sess      *Session
 
 	// the input/output
 	stdin  io.ReadCloser
@@ -118,6 +121,7 @@ func (g *Guru) ChatCommand() {
 	if err := sess.Open(opts.SessionID); err != nil {
 		g.Fatalln(err)
 	}
+	g.sess = sess
 	defer sess.Close()
 
 	httpCli := g.getHTTPClient(opts)
@@ -184,40 +188,26 @@ func (g *Guru) ChatCommand() {
 		SuffixStyle:    g.promptStyle,
 		DelimiterStyle: g.promptStyle,
 	}
+	g.lp = lp
+
+	copts := &ChatOptions{
+		ChatGPTOptions:    opts.ChatGPTOptions,
+		System:            opts.System,
+		Prompt:            opts.Prompt,
+		Oneshot:           opts.Oneshot,
+		Verbose:           opts.Verbose,
+		NonInteractive:    opts.NonInteractive,
+		DisableAutoShrink: opts.DisableAutoShrink,
+	}
+
 	eval := func(text string) {
 		// handle sys or builtin commands
-		if len(text) > 0 {
-			switch c := text[0]; c {
-			case '>', '<':
-				if c == '>' {
-					lp.PushSuffix(">")
-				} else if c == '<' {
-					lp.PopSuffix()
-				}
-				fallthrough
-			case ':':
-				if cont := builtinCommandEval(sess, text); !cont {
-					return
-				}
-				text = ""
-			case '$':
-				if cont := sysCommandEval(sess, text[1:]); !cont {
-					return
-				}
-				text = ""
-			}
+		text, cont := g.handleSysBuiltinCommands(text)
+		if !cont { // should not continue
+			return
 		}
 
-		copts := &ChatOptions{
-			ChatGPTOptions:    opts.ChatGPTOptions,
-			Text:              text,
-			System:            opts.System,
-			Prompt:            opts.Prompt,
-			Oneshot:           opts.Oneshot,
-			Verbose:           opts.Verbose,
-			NonInteractive:    opts.NonInteractive,
-			DisableAutoShrink: opts.DisableAutoShrink,
-		}
+		copts.Text = text
 		reply, err := cc.Talk(copts)
 		if err != nil {
 			g.Errorln(err)
@@ -254,6 +244,25 @@ func (g *Guru) ChatCommand() {
 	if err := repl.Loop(NewEvaluator(sess, lp, eval)); err != nil {
 		g.Fatalln(err)
 	}
+}
+func (g *Guru) handleSysBuiltinCommands(text string) (string, bool) {
+	if len(text) == 0 {
+		return text, true
+	}
+	switch c := text[0]; c {
+	case '>', '<':
+		if c == '>' {
+			g.lp.PushSuffix(">")
+		} else if c == '<' {
+			g.lp.PopSuffix()
+		}
+		fallthrough
+	case ':':
+		return "", builtinCommandEval(g.sess, text)
+	case '$':
+		return "", sysCommandEval(g.sess, text[1:])
+	}
+	return text, true
 }
 
 func (g *Guru) ServeSSH() {
