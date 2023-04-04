@@ -312,7 +312,7 @@ func (g *Guru) ConfigCommand() {
 		opts.Key == "" && opts.Value == "" {
 		// ask for openai-api-key and socks5
 		vals, err := tui.Display[tui.Model[[]string], []string](context.Background(),
-			tui.NewConfigInputModel("openai-api-key(required)", "socks5(if have)"))
+			tui.NewConfigInputModel("openai-api-key (required)", "socks5 (if have)"))
 		if err != nil {
 			g.Fatalln(err)
 		}

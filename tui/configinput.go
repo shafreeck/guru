@@ -59,7 +59,7 @@ func (m *ConfigInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "esc":
+		case "ctrl+c", "esc", "q":
 			return m, tea.Quit
 
 		// Set focus to next input
@@ -138,7 +138,7 @@ func (m *ConfigInputModel) View() string {
 	}
 	fmt.Fprintf(&b, "\n\n%s\n\n", *button)
 
-	b.WriteString(helpStyle.Render("(ctrl+c or esc to quit)"))
+	b.WriteString(helpStyle.Render("(ctrl+c, esc or q to quit)"))
 
 	return b.String()
 }
