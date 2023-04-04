@@ -209,10 +209,11 @@ func (ap *AwesomePrompts) syncCommand() (_ string) {
 }
 
 func (ap *AwesomePrompts) registerBuiltinCommands() {
-	builtins.AddCommand(":act as", ap.actasCommand, "act as a role", ap.actasComplete)
+	builtins.AddCommand(":prompt act as", ap.actasCommand, "act as a role", ap.actasComplete)
 	builtins.AddCommand(":prompt list", ap.listCommand, "list all prompts")
 	builtins.AddCommand(":prompt sync", ap.syncCommand, "sync prompts with remote repos")
 	builtins.Alias(":prompts", ":prompt list")
+	builtins.Alias(":act as", ":prompt act as")
 }
 
 func (ap *AwesomePrompts) actasComplete(line []rune, pos int) ([][]rune, int) {

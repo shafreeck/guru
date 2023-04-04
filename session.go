@@ -453,7 +453,6 @@ func (s *Session) registerBuiltinCommands() {
 	builtins.Alias(":switch", ":session switch")
 	builtins.Alias(">", ":session stack push")
 	builtins.Alias("<", ":session stack pop")
-	builtins.Alias(":session clear", ":session shrink 0:0")
 
 	s.mm.registerBuiltinCommands()
 }
