@@ -91,12 +91,12 @@ type ChatCommandOptions struct {
 	Socks5            string        `cortana:"--socks5, -, , set the socks5 proxy" yaml:"socks5,omitempty"`
 	Timeout           time.Duration `cortana:"--timeout, -, 180s, the timeout duration for a request"  yaml:"timeout,omitempty"`
 	System            string        `cortana:"--system, -,, the optional system prompt for initializing the chatgpt" yaml:"system,omitempty"`
-	Prompt            string        `cortana:"--prompt, -p, , the prompt to use"`
+	Prompt            string        `cortana:"--prompt, -p, , the prompt to use" yaml:"prompt,omitempty"`
 	Filename          string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)" yaml:"filename,omitempty"`
 	Verbose           bool          `cortana:"--verbose, -v, false, print verbose messages" yaml:"verbose,omitempty"`
 	Stdin             bool          `cortana:"--stdin, -, false, read from stdin, works as '-f --'" yaml:"stdin,omitempty"`
-	Execute           bool          `cortana:"--exec, -e,, execute what the ai returned in the shell. notice! you should know the risk to enable this flag."`
-	Oneshot           bool          `cortana:"--oneshot, -1,, avoid maintaining the context, submit the user input and prompt each time"`
+	Execute           bool          `cortana:"--exec, -e,, execute what the ai returned in the shell. notice! you should know the risk to enable this flag." yaml:"execute,omitempty"`
+	Oneshot           bool          `cortana:"--oneshot, -1,, avoid maintaining the context, submit the user input and prompt each time" yaml:"oneshot,omitempty"`
 	NonInteractive    bool          `cortana:"--non-interactive, -n, false, chat in none interactive mode" yaml:"non-interactive,omitempty"`
 	DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded" yaml:"disable-auto-shrink,omitempty"`
 	Dir               string        `cortana:"--dir,-, ~/.guru, the guru directory" yaml:"dir,omitempty"`
@@ -108,6 +108,9 @@ type ChatCommandOptions struct {
 func (g *Guru) ChatCommand() {
 	opts := &ChatCommandOptions{}
 	cortana.Parse(opts)
+
+	gi := NewGuruInfo(g, opts)
+	gi.registerBuiltinCommands()
 
 	// create directories if necessary
 	opts.Dir = expandPath(opts.Dir)
@@ -122,6 +125,7 @@ func (g *Guru) ChatCommand() {
 		g.Fatalln(err)
 	}
 	g.sess = sess
+	opts.SessionID = sess.sid
 	defer sess.Close()
 
 	httpCli := g.getHTTPClient(opts)
@@ -133,21 +137,16 @@ func (g *Guru) ChatCommand() {
 		g.Fatalln(err)
 	}
 
-	// find the prompt by its act
-	if opts.Prompt != "" {
-		p := ap.PromptText(opts.Prompt)
-		if p == "" {
-			g.Fatalln("prompt not found: ", opts.Prompt)
-		}
-		opts.Prompt = p
-	}
-
 	// add the system and prompt message
 	if opts.System != "" {
 		sess.Append(&Message{Role: User, Content: opts.System})
 	}
 	if opts.Prompt != "" {
-		sess.Append(&Message{Role: User, Content: opts.Prompt})
+		p := ap.PromptText(opts.Prompt)
+		if p == "" {
+			g.Errorln("prompt not found:", opts.Prompt)
+		}
+		sess.Append(&Message{Role: User, Content: p})
 	}
 
 	// read from stdin or file
@@ -190,24 +189,26 @@ func (g *Guru) ChatCommand() {
 	}
 	g.lp = lp
 
-	copts := &ChatOptions{
-		ChatGPTOptions:    opts.ChatGPTOptions,
-		System:            opts.System,
-		Prompt:            opts.Prompt,
-		Oneshot:           opts.Oneshot,
-		Verbose:           opts.Verbose,
-		NonInteractive:    opts.NonInteractive,
-		DisableAutoShrink: opts.DisableAutoShrink,
-	}
-
 	eval := func(text string) {
+		copts := &ChatOptions{
+			ChatGPTOptions:    opts.ChatGPTOptions,
+			System:            opts.System,
+			Oneshot:           opts.Oneshot,
+			Verbose:           opts.Verbose,
+			OneshotPrompt:     opts.Prompt,
+			NonInteractive:    opts.NonInteractive,
+			DisableAutoShrink: opts.DisableAutoShrink,
+		}
+		// add to guru info, so these args could be set by :set command
+		gi.copts = copts
+
 		// handle sys or builtin commands
 		text, cont := g.handleSysBuiltinCommands(text)
 		if !cont { // should not continue
 			return
 		}
-
 		copts.Text = text
+
 		reply, err := cc.Talk(copts)
 		if err != nil {
 			g.Errorln(err)

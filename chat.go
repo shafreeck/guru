@@ -12,14 +12,14 @@ import (
 )
 
 type ChatOptions struct {
-	ChatGPTOptions
-	System            string
-	Prompt            string
-	Oneshot           bool
-	Verbose           bool
-	NonInteractive    bool
-	DisableAutoShrink bool
-	Text              string
+	ChatGPTOptions    `yaml:"chatgpt"`
+	System            string `yaml:"system"`
+	Oneshot           bool   `yaml:"oneshot"`
+	OneshotPrompt     string `yaml:"-"` // the prompt for oneshot, submitted each time
+	Verbose           bool   `yaml:"verbose"`
+	NonInteractive    bool   `yaml:"non-interactive"`
+	DisableAutoShrink bool   `yaml:"disable-auto-shrink"`
+	Text              string `yaml:"-"`
 }
 
 type ChatCommand struct {
@@ -37,11 +37,15 @@ func NewChatCommand(sess *Session, ap *AwesomePrompts, httpCli *http.Client, opt
 func (c *ChatCommand) Talk(opts *ChatOptions) (string, error) {
 	if opts.Oneshot {
 		c.sess.ClearMessage()
-	}
 
-	// submit prompt each time in oneshot mode
-	if opts.Prompt != "" && opts.Oneshot {
-		c.sess.Append(&Message{Role: User, Content: opts.Prompt})
+		// submit prompt each time in oneshot mode
+		if opts.OneshotPrompt != "" {
+			p := c.ap.PromptText(opts.OneshotPrompt)
+			if p == "" {
+				return "", fmt.Errorf("prompt not found: %s", opts.OneshotPrompt)
+			}
+			c.sess.Append(&Message{Role: User, Content: p})
+		}
 	}
 
 	if opts.Text != "" {
