@@ -93,7 +93,7 @@ type ChatCommandOptions struct {
 	Verbose           bool          `cortana:"--verbose, -v, false, print verbose messages" yaml:"verbose,omitempty"`
 	Stdin             bool          `cortana:"--stdin, -, false, read from stdin, works as '-f --'" yaml:"stdin,omitempty"`
 	Execute           bool          `cortana:"--exec, -e,, execute what the ai returned in the shell. notice! you should know the risk to enable this flag."`
-	Oneshot           bool          `cortana:"--oneshot, -,, avoid maintaining the context, submit the user input and prompt each time"`
+	Oneshot           bool          `cortana:"--oneshot, -1,, avoid maintaining the context, submit the user input and prompt each time"`
 	NonInteractive    bool          `cortana:"--non-interactive, -n, false, chat in none interactive mode" yaml:"non-interactive,omitempty"`
 	DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded" yaml:"disable-auto-shrink,omitempty"`
 	Dir               string        `cortana:"--dir,-, ~/.guru, the guru directory" yaml:"dir,omitempty"`

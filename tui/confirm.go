@@ -44,7 +44,10 @@ func (m *ConfirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quiting = true
 			m.confirmed = false
 			return m, tea.Quit
-
+		case "y", "Y":
+			m.focusIndex = 1
+		case "n", "N":
+			m.focusIndex = 2
 		// Set focus to next input
 		case "tab", "shift+tab", "enter", "left", "right", "up", "down":
 			s := msg.String()
