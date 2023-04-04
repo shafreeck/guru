@@ -74,7 +74,7 @@ func (g *GuruInfo) setCommand() (_ string) {
 		return
 	}
 	if _, ok := settable[opts.Key]; !ok {
-		g.g.Errorln("key is not settable in interactive mode, use config instead: ", opts.Key)
+		g.g.Errorln("key is not settable in interactive mode, use config or command argument instead: ", opts.Key)
 		return
 	}
 
