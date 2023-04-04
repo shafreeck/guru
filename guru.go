@@ -18,6 +18,7 @@ import (
 	"github.com/alecthomas/chroma/quick"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/ssh"
+	"github.com/chzyer/readline"
 	"github.com/shafreeck/cortana"
 	"github.com/shafreeck/guru/tui"
 	"golang.org/x/net/proxy"
@@ -130,6 +131,10 @@ func (g *Guru) ChatCommand() {
 	var content string
 	if !opts.Stdin {
 		opts.Stdin = opts.Filename == "--"
+	}
+	// read from stdin if os.Stdin is not a terminal
+	if !readline.IsTerminal(int(os.Stdin.Fd())) {
+		opts.Stdin = true
 	}
 	if opts.Stdin {
 		opts.NonInteractive = true
