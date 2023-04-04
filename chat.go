@@ -14,6 +14,7 @@ import (
 type ChatOptions struct {
 	ChatGPTOptions
 	System            string
+	Prompt            string
 	Verbose           bool
 	NonInteractive    bool
 	DisableAutoShrink bool
@@ -35,6 +36,10 @@ func NewChatCommand(sess *Session, ap *AwesomePrompts, httpCli *http.Client, opt
 func (c *ChatCommand) Talk(opts *ChatOptions) {
 	if opts.System != "" {
 		c.sess.Append(&Message{Role: User, Content: opts.System})
+	}
+
+	if opts.Prompt != "" {
+		c.sess.Append(&Message{Role: User, Content: opts.Prompt})
 	}
 
 	if opts.Text != "" {

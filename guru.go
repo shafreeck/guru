@@ -88,6 +88,7 @@ type ChatCommandOptions struct {
 	Socks5            string        `cortana:"--socks5, -, , set the socks5 proxy" yaml:"socks5,omitempty"`
 	Timeout           time.Duration `cortana:"--timeout, -, 180s, the timeout duration for a request"  yaml:"timeout,omitempty"`
 	System            string        `cortana:"--system, -,, the optional system prompt for initializing the chatgpt" yaml:"system,omitempty"`
+	Prompt            string        `cortana:"--prompt, -p, , the prompt to use"`
 	Filename          string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)" yaml:"filename,omitempty"`
 	Verbose           bool          `cortana:"--verbose, -v, false, print verbose messages" yaml:"verbose,omitempty"`
 	Stdin             bool          `cortana:"--stdin, -, false, read from stdin, works as '-f --'" yaml:"stdin,omitempty"`
@@ -149,6 +150,20 @@ func (g *Guru) ChatCommand() {
 		sess.Append(&Message{Role: User, Content: content})
 	}
 
+	// enter non-interactive mode if stdout is not a terminal
+	if !readline.IsTerminal(int(os.Stdout.Fd())) {
+		opts.NonInteractive = true
+	}
+
+	// find the prompt by its act
+	if opts.Prompt != "" {
+		p := ap.PromptText(opts.Prompt)
+		if p == "" {
+			g.Fatalln("prompt not found: ", opts.Prompt)
+		}
+		opts.Prompt = p
+	}
+
 	// new a ChatGPT client and run the command
 	cc := NewChatCommand(sess, ap, httpCli, opts)
 
@@ -188,6 +203,7 @@ func (g *Guru) ChatCommand() {
 			ChatGPTOptions:    opts.ChatGPTOptions,
 			Text:              text,
 			System:            opts.System,
+			Prompt:            opts.Prompt,
 			Verbose:           opts.Verbose,
 			NonInteractive:    opts.NonInteractive,
 			DisableAutoShrink: opts.DisableAutoShrink,

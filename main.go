@@ -21,6 +21,7 @@ func main() {
 	cortana.AddCommand("config", g.ConfigCommand, "configure guru")
 	cortana.AddCommand("serve ssh", g.ServeSSH, "serve as an ssh app")
 
-	cortana.Alias("commit message", `chat --system "give me a one line commit message based on the diff with less than 15 words"`)
+	cortana.Alias("commit message", `chat --prompt committer"`)
+	cortana.Alias("cheatsheet", `chat --prompt cheatsheet"`)
 	cortana.Launch()
 }

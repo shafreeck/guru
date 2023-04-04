@@ -35,20 +35,21 @@ type AwesomePrompts struct {
 	cli *http.Client
 	out CommandOutput
 
-	prompts []PromptEntry
+	dict    map[string]*PromptEntry // dict for prompts
+	prompts []*PromptEntry
 }
 
 func NewAwesomePrompts(dir string, cli *http.Client, out CommandOutput) *AwesomePrompts {
 	if out == nil {
 		out = &commandStdout{}
 	}
-	ap := &AwesomePrompts{dir: dir, cli: cli, out: out}
+	ap := &AwesomePrompts{dir: dir, cli: cli, out: out, dict: make(map[string]*PromptEntry)}
 	ap.registerBuiltinCommands()
 	return ap
 }
 
-func loadCSV(r io.Reader) []PromptEntry {
-	var prompts []PromptEntry
+func loadCSV(r io.Reader) []*PromptEntry {
+	var prompts []*PromptEntry
 	reader := csv.NewReader(r)
 	for record, err := reader.Read(); err != io.EOF; record, err = reader.Read() {
 		if err != nil {
@@ -64,7 +65,7 @@ func loadCSV(r io.Reader) []PromptEntry {
 			continue
 		}
 
-		prompts = append(prompts, PromptEntry{
+		prompts = append(prompts, &PromptEntry{
 			Act:    record[0],
 			Prompt: record[1],
 		})
@@ -72,8 +73,8 @@ func loadCSV(r io.Reader) []PromptEntry {
 	return prompts
 }
 
-func loadJSON(r io.Reader) []PromptEntry {
-	var prompts []PromptEntry
+func loadJSON(r io.Reader) []*PromptEntry {
+	var prompts []*PromptEntry
 
 	decoder := json.NewDecoder(r)
 	decoder.Decode(&prompts)
@@ -105,7 +106,7 @@ func (ap *AwesomePrompts) sync() error {
 
 func (ap *AwesomePrompts) Load() error {
 	prefix := "awesome-chatgpt-prompts"
-	var prompts []PromptEntry
+	prompts := builtinPrompts
 
 	entries, err := os.ReadDir(ap.dir)
 	if err != nil {
@@ -134,8 +135,22 @@ func (ap *AwesomePrompts) Load() error {
 			prompts = append(prompts, loadJSON(r)...)
 		}
 	}
+
+	// Build the index
+	for _, p := range prompts {
+		ap.dict[p.Act] = p
+	}
+
 	ap.prompts = prompts
 	return nil
+}
+
+func (ap *AwesomePrompts) PromptText(act string) string {
+	p := ap.dict[act]
+	if p != nil {
+		return p.Prompt
+	}
+	return ""
 }
 
 func (ap *AwesomePrompts) actasCommand() string {
