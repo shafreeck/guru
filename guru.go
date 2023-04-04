@@ -95,7 +95,7 @@ type ChatCommandOptions struct {
 	DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded" yaml:"disable-auto-shrink,omitempty"`
 	Dir               string        `cortana:"--dir,-, ~/.guru, the guru directory" yaml:"dir,omitempty"`
 	SessionID         string        `cortana:"--session-id, -s,, the session id" yaml:"session-id,omitempty"`
-	Text              string        `cortana:"text, -" yaml:"-"`
+	Texts             []string      `cortana:"text, -" yaml:"-"`
 }
 
 // chatCommand chats with ChatGPT
@@ -196,9 +196,11 @@ func (g *Guru) ChatCommand() {
 	}
 
 	// Evaluate first before entering interactive mode
-	if opts.System != "" || opts.Text != "" ||
+	if opts.System != "" || len(opts.Texts) != 0 ||
 		opts.Stdin || opts.Filename != "" {
-		eval(opts.Text)
+
+		text := strings.Join(opts.Texts, " ")
+		eval(text)
 	}
 
 	if opts.NonInteractive {
