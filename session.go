@@ -158,6 +158,9 @@ func (s *Session) Append(m *Message) {
 func (s *Session) LastSessionID() string {
 	last := path.Join(path.Dir(s.dir), "last")
 	target, _ := os.Readlink(last)
+	if target == "" {
+		return ""
+	}
 	return path.Base(target)
 }
 
