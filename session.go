@@ -194,27 +194,10 @@ func (s *Session) load() error {
 }
 
 func (s *Session) replay(records []*record) {
-	render := &tui.JSONRenderer{}
-	s.out.Println("replay session:", s.sid)
 	for _, r := range records {
 		args := strings.Fields(r.Op)
-		s.out.Print(r.Op, " ")
 		if r.Msg != nil {
-			data, err := json.Marshal(r.Msg)
-			if err != nil {
-				s.out.Errorln(err)
-				return
-			}
-			text, err := render.Render(string(data))
-			if err != nil {
-				s.out.Errorln(err)
-				return
-			}
-
-			s.out.Println(text)
 			args = append(args, "--role", string(r.Msg.Role), r.Msg.Content)
-		} else {
-			s.out.Println()
 		}
 		builtins.Launch(args)
 	}
