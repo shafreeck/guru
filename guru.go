@@ -226,8 +226,8 @@ func (g *Guru) ChatCommand() {
 		// handle post talk, the action is executing the reply by far
 		if copts.Executor != "" {
 			output := g.execute(NewExecutor(opts.Executor), reply)
+			g.Println(output)
 			if copts.Feedback && output != "" {
-				g.Println(output)
 				text = output
 				goto feedback
 			}
