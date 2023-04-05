@@ -17,7 +17,7 @@ type Renderer interface {
 type JSONRenderer struct {
 }
 
-func (r *JSONRenderer) Render(text string) (string, error) {
+func (r JSONRenderer) Render(text string) (string, error) {
 	out := bytes.NewBuffer(nil)
 	if err := quick.Highlight(out, string(text), "json", "terminal256", "monokai"); err != nil {
 		return "", err
@@ -36,7 +36,7 @@ func (r *TextRenderer) Render(text []byte) ([]byte, error) {
 type MarkdownRender struct {
 }
 
-func (r *MarkdownRender) Render(text string) (string, error) {
+func (r MarkdownRender) Render(text string) (string, error) {
 	// use the markdown renderer to render the response
 	md, err := glamour.NewTermRenderer(
 		// detect background color and pick either the default dark or light theme
