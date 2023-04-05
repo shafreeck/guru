@@ -16,10 +16,11 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/muesli/reflow v0.3.0
 	github.com/muesli/termenv v0.15.1
-	github.com/shafreeck/cortana v0.0.0-20230329195422-5f0f48550a00
+	github.com/shafreeck/cortana v0.0.0-20230405104255-971a7b5663d9
 	github.com/yuin/goldmark v1.5.2
 	golang.org/x/net v0.8.0
 	golang.org/x/term v0.6.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -53,5 +54,4 @@ require (
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
