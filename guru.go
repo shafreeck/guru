@@ -227,6 +227,7 @@ func (g *Guru) ChatCommand() {
 		if copts.Executor != "" {
 			output := g.execute(NewExecutor(opts.Executor), reply)
 			if copts.Feedback && output != "" {
+				g.Println(output)
 				text = output
 				goto feedback
 			}
@@ -405,7 +406,6 @@ func (g *Guru) execute(e *Executor, input string) string {
 	if err != nil {
 		g.Errorln(err)
 	}
-	fmt.Fprintln(g.stdout, out)
 	return out
 }
 
