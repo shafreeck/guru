@@ -95,6 +95,7 @@ type ChatCommandOptions struct {
 	Filename          string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)" yaml:"filename,omitempty"`
 	Verbose           bool          `cortana:"--verbose, -v, false, print verbose messages" yaml:"verbose,omitempty"`
 	Stdin             bool          `cortana:"--stdin, -, false, read from stdin, works as '-f --'" yaml:"stdin,omitempty"`
+	Last              bool          `cortana:"--last, -, false, continue the last session" yaml:"-"`
 	Execute           bool          `cortana:"--exec, -e,, execute what the ai returned in the shell. notice! you should know the risk to enable this flag." yaml:"execute,omitempty"`
 	Oneshot           bool          `cortana:"--oneshot, -1,, avoid maintaining the context, submit the user input and prompt each time" yaml:"oneshot,omitempty"`
 	NonInteractive    bool          `cortana:"--non-interactive, -n, false, chat in none interactive mode" yaml:"non-interactive,omitempty"`
@@ -121,6 +122,9 @@ func (g *Guru) ChatCommand() {
 	// create session
 	sessionDir := path.Join(opts.Dir, "session")
 	sess := NewSession(sessionDir, WithCommandOutput(g), WithHighlightStyle(g.highlightStyle))
+	if opts.SessionID == "" && opts.Last { // open last session
+		opts.SessionID = sess.LastSessionID()
+	}
 	if err := sess.Open(opts.SessionID); err != nil {
 		g.Fatalln(err)
 	}

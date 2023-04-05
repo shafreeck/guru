@@ -133,13 +133,19 @@ func (s *Session) Remove(sid string) error {
 }
 
 func (s *Session) Close() {
-	// nothing saved, delete the session
-	if len(s.history.records) == 0 {
-		s.Remove(s.sid)
-	}
 	if s.history.w != nil {
 		s.history.w.Close()
 	}
+	// nothing saved, delete the session
+	if len(s.history.records) == 0 {
+		s.Remove(s.sid)
+		return
+	}
+
+	// just ignore the erros
+	last := path.Join(path.Dir(s.dir), "last")
+	os.Rename(last, last+".bak") // backup the last symbol
+	os.Symlink(path.Join(s.dir, s.sid), last)
 }
 
 func (s *Session) Append(m *Message) {
@@ -147,6 +153,12 @@ func (s *Session) Append(m *Message) {
 	if err := s.history.append(":append", m); err != nil {
 		s.out.Errorln(err)
 	}
+}
+
+func (s *Session) LastSessionID() string {
+	last := path.Join(path.Dir(s.dir), "last")
+	target, _ := os.Readlink(last)
+	return path.Base(target)
 }
 
 func (s *Session) Messages() []*Message {
