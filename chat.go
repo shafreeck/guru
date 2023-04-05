@@ -16,6 +16,8 @@ type ChatOptions struct {
 	System            string `yaml:"system"`
 	Oneshot           bool   `yaml:"oneshot"`
 	OneshotPrompt     string `yaml:"-"` // the prompt for oneshot, submitted each time
+	Executor          string `yaml:"executor"`
+	Feedback          bool   `yaml:"feedback"`
 	Verbose           bool   `yaml:"verbose"`
 	NonInteractive    bool   `yaml:"non-interactive"`
 	DisableAutoShrink bool   `yaml:"disable-auto-shrink"`

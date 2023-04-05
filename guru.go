@@ -96,7 +96,8 @@ type ChatCommandOptions struct {
 	Verbose           bool          `cortana:"--verbose, -v, false, print verbose messages" yaml:"verbose,omitempty"`
 	Stdin             bool          `cortana:"--stdin, -, false, read from stdin, works as '-f --'" yaml:"stdin,omitempty"`
 	Last              bool          `cortana:"--last, -, false, continue the last session" yaml:"-"`
-	Execute           bool          `cortana:"--exec, -e,, execute what the ai returned in the shell. notice! you should know the risk to enable this flag." yaml:"execute,omitempty"`
+	Executor          string        `cortana:"--executor, -e,, execute what the ai returned using the executor. notice! you should know the risk to enable this flag." yaml:"executor,omitempty"`
+	Feedback          bool          `cortana:"--feedback, -, false, feedback the output of executor" yaml:"feedback"`
 	Oneshot           bool          `cortana:"--oneshot, -1,, avoid maintaining the context, submit the user input and prompt each time" yaml:"oneshot,omitempty"`
 	NonInteractive    bool          `cortana:"--non-interactive, -n, false, chat in none interactive mode" yaml:"non-interactive,omitempty"`
 	DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded" yaml:"disable-auto-shrink,omitempty"`
@@ -194,11 +195,14 @@ func (g *Guru) ChatCommand() {
 	g.lp = lp
 
 	eval := func(text string) {
+	feedback:
 		copts := &ChatOptions{
 			ChatGPTOptions:    opts.ChatGPTOptions,
 			System:            opts.System,
 			Oneshot:           opts.Oneshot,
 			Verbose:           opts.Verbose,
+			Executor:          opts.Executor,
+			Feedback:          opts.Feedback,
 			OneshotPrompt:     opts.Prompt,
 			NonInteractive:    opts.NonInteractive,
 			DisableAutoShrink: opts.DisableAutoShrink,
@@ -220,8 +224,12 @@ func (g *Guru) ChatCommand() {
 		}
 
 		// handle post talk, the action is executing the reply by far
-		if opts.Execute {
-			g.execute(reply)
+		if copts.Executor != "" {
+			output := g.execute(NewExecutor(opts.Executor), reply)
+			if copts.Feedback && output != "" {
+				text = output
+				goto feedback
+			}
 		}
 	}
 
@@ -384,20 +392,21 @@ func (g *Guru) ConfigCommand() {
 }
 
 // execute a command in shell
-func (g *Guru) execute(cmd string) {
-	confirmed, err := tui.Display[tui.Model[bool], bool](context.Background(), tui.NewConfimModel(cmd))
+func (g *Guru) execute(e *Executor, input string) string {
+	confirmed, err := tui.Display[tui.Model[bool], bool](context.Background(), tui.NewConfimModel(input))
 	if err != nil {
 		g.Errorln(err)
 	}
 
 	if !confirmed {
-		return
+		return ""
 	}
-	out, err := runCommand(cmd)
+	out, err := e.Exec(input)
 	if err != nil {
 		g.Errorln(err)
 	}
 	fmt.Fprintln(g.stdout, out)
+	return out
 }
 
 func (g *Guru) readStdin() (string, error) {
