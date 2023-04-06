@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/charmbracelet/lipgloss"
 )
 
 type CommandOutput interface {
+	io.Writer
 	StylePrint(style lipgloss.Style, a ...any)
 	StylePrintln(style lipgloss.Style, a ...any)
 	StylePrintf(style lipgloss.Style, format string, a ...any)
@@ -20,6 +22,10 @@ type CommandOutput interface {
 }
 
 type commandStdout struct{}
+
+func (out *commandStdout) Write(data []byte) (int, error) {
+	return os.Stdout.Write(data)
+}
 
 func (out *commandStdout) StylePrint(style lipgloss.Style, a ...any) {
 	var ss []any

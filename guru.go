@@ -425,6 +425,9 @@ func (g *Guru) readFile(filename string) (string, error) {
 	return string(data), err
 }
 
+func (g *Guru) Write(data []byte) (int, error) {
+	return g.stdout.Write(data)
+}
 func (g *Guru) StylePrint(style lipgloss.Style, a ...any) {
 	var ss []any
 	for _, s := range a {

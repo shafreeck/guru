@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 )
@@ -88,7 +89,7 @@ func sysCommandEval(sess *Session, text string) (cont bool) {
 		sess.out.Error(err)
 		return
 	}
-	sess.out.Println(out)
+	fmt.Fprintln(sess.out, out)
 	sess.Append(&Message{Role: User, Content: out})
 	return
 }
