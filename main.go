@@ -25,7 +25,7 @@ func main() {
 	// Ex. alias cheatsheet = "chat --prompt cheatsheet", when run with `chat --prompt cheatsheet`,
 	// the part of `chat cheatsheet` will be recorgnized as `chat cheatsheet` alias, and `--prompt`
 	// is the flag
-	cortana.Alias("commit", `chat --prompt committer`)
-	cortana.Alias("cheat", `chat --prompt cheatsheet`)
+	cortana.Alias("commit", `chat --prompt Committer`)
+	cortana.Alias("cheat", `chat --prompt Cheatsheet`)
 	cortana.Launch()
 }
