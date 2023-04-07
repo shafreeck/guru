@@ -86,7 +86,7 @@ func New(opts ...GuruOption) *Guru {
 }
 
 type ChatCommandOptions struct {
-	ChatGPTOptions    `yaml:"chatgpt"`
+	ChatGPTOptions    `yaml:"chatgpt,omitempty"`
 	APIKey            string        `cortana:"--openai-api-key, -, -, set your openai api key" yaml:"openai-api-key,omitempty"`
 	Socks5            string        `cortana:"--socks5, -, , set the socks5 proxy" yaml:"socks5,omitempty"`
 	Timeout           time.Duration `cortana:"--timeout, -, 180s, the timeout duration for a request"  yaml:"timeout,omitempty"`
@@ -98,7 +98,7 @@ type ChatCommandOptions struct {
 	Pin               bool          `cortana:"--pin, -, false, pin the initial messages" yaml:"pin,omitempty"`
 	Last              bool          `cortana:"--last, -, false, continue the last session" yaml:"-"`
 	Executor          string        `cortana:"--executor, -e,, execute what the ai returned using the executor. notice! you should know the risk to enable this flag." yaml:"executor,omitempty"`
-	Feedback          bool          `cortana:"--feedback, -, false, feedback the output of executor" yaml:"feedback"`
+	Feedback          bool          `cortana:"--feedback, -, false, feedback the output of executor" yaml:"feedback,omitempty"`
 	Oneshot           bool          `cortana:"--oneshot, -1,, avoid maintaining the context, submit the user input and prompt each time" yaml:"oneshot,omitempty"`
 	NonInteractive    bool          `cortana:"--non-interactive, -n, false, chat in none interactive mode" yaml:"non-interactive,omitempty"`
 	DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded" yaml:"disable-auto-shrink,omitempty"`
