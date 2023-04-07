@@ -173,7 +173,7 @@ retry:
 		if n > 1 {
 			word = "messages"
 		}
-		c.sess.out.Printf("%d %s shrinked because of tokens limitation", n, word)
+		c.sess.out.Printf("%d %s shrinked because of tokens limitation\n", n, word)
 		goto retry
 	}
 	if err != nil {
