@@ -44,6 +44,7 @@ func Display[M Model[V], V any](ctx context.Context, m M) (V, error) {
 		opts = append(opts, tea.WithoutRenderer())
 	}
 	p := tea.NewProgram(m, opts...)
+	defer p.ReleaseTerminal()
 	done, err := p.Run()
 	res := done.(M)
 	if res.Error() != nil {
