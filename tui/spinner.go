@@ -47,7 +47,7 @@ func (s *SpinnerModel[V]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
-			s.err = errors.New("Ctl+C interrupted")
+			s.err = errors.New("Ctrl+C interrupted")
 			return s, tea.Quit
 		}
 	case errMsg:

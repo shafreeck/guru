@@ -60,7 +60,7 @@ func (s *StreamModel[E, S]) Update(msg tea.Msg) (m tea.Model, cmd tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
-			s.err = errors.New("Ctl+C interrupted")
+			s.err = errors.New("Ctrl+C interrupted")
 			quiting = true
 			return s, tea.Quit
 		}
