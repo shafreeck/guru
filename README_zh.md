@@ -93,7 +93,7 @@ echo list files in this dir in detail | guru cheat | sh
 
 ### 消息管理
 
-向 ChatGPT 的内容，以及其返回的内容，成为一条消息(Message)，通过内部 `:message` 命令可以管理当前要提交给 ChatGPT 的消息。
+向 ChatGPT 的内容，以及其返回的内容，称为一条消息(Message)，通过内部 `:message` 命令可以管理当前要提交给 ChatGPT 的消息。
 
 ```
 guru > :message
