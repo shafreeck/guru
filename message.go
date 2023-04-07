@@ -14,6 +14,7 @@ import (
 type messageManager struct {
 	out      CommandOutput
 	messages []*Message
+	pinned   map[int]bool // pinned stores the index of pinned message
 }
 
 func (m *messageManager) append(msg *Message) {
@@ -40,7 +41,12 @@ func (m *messageManager) listCommand() (_ string) {
 			m.out.Errorln(err)
 			return
 		}
-		m.out.Printf("%3d. %s", i, text)
+		if m.pinned[i] {
+			// It's not an error here, we leverage the red style
+			m.out.Errorf("%3d. %s", i, text)
+		} else {
+			m.out.Printf("%3d. %s", i, text)
+		}
 		// we cat not use "\n" in Printf, it cause conficts with the style renderer
 		m.out.Println()
 	}
@@ -71,7 +77,7 @@ func (m *messageManager) shrinkCommand() (_ string) {
 		}
 	}
 	if len(parts) == 1 {
-		m.messages = m.messages[begin:]
+		m.slice(begin, len(m.messages))
 		return
 	}
 	if v := parts[1]; v != "" {
@@ -85,7 +91,7 @@ func (m *messageManager) shrinkCommand() (_ string) {
 	if end > size {
 		end = size
 	}
-	m.messages = m.messages[begin:end]
+	m.slice(begin, end)
 	m.listCommand()
 	return
 }
@@ -97,12 +103,22 @@ func (m *messageManager) deleteCommand() (_ string) {
 		return
 	}
 
+	// check pinned message first
+	for _, index := range opts.Indexes {
+		if m.pinned[index] {
+			m.out.Errorln(index, " is pinned, unpin it first")
+			return
+		}
+	}
+
+	// mark deleted message as nil
 	for _, index := range opts.Indexes {
 		if index < 0 || index >= len(m.messages) {
 			continue
 		}
 		m.messages[index] = nil
 	}
+
 	var updated []*Message
 	for _, msg := range m.messages {
 		if msg != nil {
@@ -118,11 +134,11 @@ func (m *messageManager) autoShrink() int {
 	case 0, 1:
 		return 0
 	case 2, 3:
-		m.messages = m.messages[size-1:]
+		m.slice(size-1, size)
 		return 1
 	}
 	idx := size / 2
-	m.messages = m.messages[idx:]
+	m.slice(idx, size)
 	return idx
 }
 
@@ -173,12 +189,81 @@ func (m *messageManager) appendCommand() (_ string) {
 	return
 }
 
+// slice the message with pinned consindered
+func (m *messageManager) slice(begin, end int) {
+	var header, tailer []*Message
+	for i := 0; i < begin; i++ {
+		if m.pinned[i] {
+			header = append(header, m.messages[i])
+		}
+	}
+	for i := end; i < len(m.messages); i++ {
+		if m.pinned[i] {
+			tailer = append(tailer, m.messages[i])
+		}
+	}
+
+	messages := append(header, m.messages[begin:end]...)
+	m.messages = append(messages, tailer...)
+}
+
+func (m *messageManager) pin(indexes ...int) {
+	if m.pinned == nil {
+		m.pinned = make(map[int]bool)
+	}
+
+	for _, index := range indexes {
+		if index < 0 || index >= len(m.messages) {
+			continue
+		}
+		m.pinned[index] = true
+	}
+}
+func (m *messageManager) unpin(indexes ...int) {
+	if m.pinned == nil {
+		return
+	}
+
+	for _, index := range indexes {
+		if index < 0 || index >= len(m.messages) {
+			continue
+		}
+		delete(m.pinned, index)
+	}
+}
+
+func (m *messageManager) pinCommand() (_ string) {
+	opts := struct {
+		Indexes []int `cortana:"index, -, -"`
+	}{}
+	if usage := builtins.Parse(&opts); usage {
+		return
+	}
+	m.pin(opts.Indexes...)
+	return
+}
+
+func (m *messageManager) unpinCommand() (_ string) {
+	opts := struct {
+		Indexes []int `cortana:"index, -, -"`
+	}{}
+	if usage := builtins.Parse(&opts); usage {
+		return
+	}
+
+	m.unpin(opts.Indexes...)
+
+	return
+}
+
 func (m *messageManager) registerBuiltinCommands() {
 	builtins.AddCommand(":message list", m.listCommand, "list messages")
 	builtins.AddCommand(":message delete", m.deleteCommand, "delete messages")
 	builtins.AddCommand(":message shrink", m.shrinkCommand, "shrink messages")
 	builtins.AddCommand(":message show", m.showCommand, "show certain messages")
 	builtins.AddCommand(":message append", m.appendCommand, "append a message")
+	builtins.AddCommand(":message pin", m.pinCommand, "pin messages")
+	builtins.AddCommand(":message unpin", m.unpinCommand, "unpin messages")
 	builtins.Alias(":ls", ":message list")
 	builtins.Alias(":show", ":message show")
 	builtins.Alias(":reset", ":message shrink 0:0")

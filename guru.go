@@ -95,6 +95,7 @@ type ChatCommandOptions struct {
 	Filename          string        `cortana:"--file, -f, ,send the file content after sending the text(if supplied)" yaml:"filename,omitempty"`
 	Verbose           bool          `cortana:"--verbose, -v, false, print verbose messages" yaml:"verbose,omitempty"`
 	Stdin             bool          `cortana:"--stdin, -, false, read from stdin, works as '-f --'" yaml:"stdin,omitempty"`
+	Pin               bool          `cortana:"--pin, -, false, pin the initial messages" yaml:"pin,omitempty"`
 	Last              bool          `cortana:"--last, -, false, continue the last session" yaml:"-"`
 	Executor          string        `cortana:"--executor, -e,, execute what the ai returned using the executor. notice! you should know the risk to enable this flag." yaml:"executor,omitempty"`
 	Feedback          bool          `cortana:"--feedback, -, false, feedback the output of executor" yaml:"feedback"`
@@ -144,14 +145,14 @@ func (g *Guru) ChatCommand() {
 
 	// add the system and prompt message
 	if opts.System != "" {
-		sess.Append(&Message{Role: User, Content: opts.System})
+		sess.Append(&Message{Role: User, Content: opts.System}, opts.Pin)
 	}
 	if opts.Prompt != "" {
 		p := ap.PromptText(opts.Prompt)
 		if p == "" {
 			g.Errorln("prompt not found:", opts.Prompt)
 		}
-		sess.Append(&Message{Role: User, Content: p})
+		sess.Append(&Message{Role: User, Content: p}, opts.Pin)
 	}
 
 	// read from stdin or file
@@ -174,7 +175,7 @@ func (g *Guru) ChatCommand() {
 		g.Fatalln(err)
 	}
 	if content != "" {
-		sess.Append(&Message{Role: User, Content: content})
+		sess.Append(&Message{Role: User, Content: content}, opts.Pin)
 	}
 
 	if !readline.IsTerminal(int(os.Stdout.Fd())) {
@@ -239,6 +240,7 @@ func (g *Guru) ChatCommand() {
 		opts.Stdin || opts.Filename != "" {
 
 		text := strings.Join(opts.Texts, " ")
+		sess.Append(&Message{Role: User, Content: text}, opts.Pin)
 
 		// When in oneshot mode, the first talk should supply all
 		// the messages from system, stdin, prompts or text.
@@ -246,7 +248,7 @@ func (g *Guru) ChatCommand() {
 		// first time, and then restore it before entering the REPL.
 		restore := opts.Oneshot
 		opts.Oneshot = false
-		eval(text)
+		eval("")
 		opts.Oneshot = restore
 	}
 

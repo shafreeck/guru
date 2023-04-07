@@ -148,8 +148,11 @@ func (s *Session) Close() {
 	os.Symlink(path.Join(s.dir, s.sid), last)
 }
 
-func (s *Session) Append(m *Message) {
+func (s *Session) Append(m *Message, pin ...bool) {
 	s.mm.append(m)
+	if pin != nil && pin[0] {
+		s.mm.pin(len(s.mm.messages) - 1)
+	}
 	if err := s.history.append(":append", m); err != nil {
 		s.out.Errorln(err)
 	}
