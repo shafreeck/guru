@@ -171,7 +171,8 @@ func (s *Session) Messages() []*Message {
 	return s.mm.messages
 }
 func (s *Session) ClearMessage() {
-	s.mm.messages = nil
+	s.mm.slice(0, 0)
+	s.history.append(":reset", nil)
 }
 
 func (s *Session) load() error {
@@ -234,6 +235,10 @@ func (s *Session) OnCommand(args []string) {
 	case strings.HasPrefix(op, ":message shrink"):
 		fallthrough
 	case strings.HasPrefix(op, ":message delete"):
+		fallthrough
+	case strings.HasPrefix(op, ":message pin"):
+		fallthrough
+	case strings.HasPrefix(op, ":message unpin"):
 		fallthrough
 	case strings.HasPrefix(op, ":message append"):
 		s.history.append(op, nil)

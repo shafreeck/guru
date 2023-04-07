@@ -14,7 +14,7 @@ import (
 type messageManager struct {
 	out      CommandOutput
 	messages []*Message
-	pinned   map[int]bool // pinned stores the index of pinned message
+	pinned   map[*Message]bool // pinned stores the index of pinned message
 }
 
 func (m *messageManager) append(msg *Message) {
@@ -41,7 +41,7 @@ func (m *messageManager) listCommand() (_ string) {
 			m.out.Errorln(err)
 			return
 		}
-		if m.pinned[i] {
+		if m.pinned[msg] {
 			// It's not an error here, we leverage the red style
 			m.out.Errorf("%3d. %s", i, text)
 		} else {
@@ -105,7 +105,10 @@ func (m *messageManager) deleteCommand() (_ string) {
 
 	// check pinned message first
 	for _, index := range opts.Indexes {
-		if m.pinned[index] {
+		if index < 0 || index >= len(m.messages) {
+			continue
+		}
+		if m.pinned[m.messages[index]] {
 			m.out.Errorln(index, " is pinned, unpin it first")
 			return
 		}
@@ -193,12 +196,12 @@ func (m *messageManager) appendCommand() (_ string) {
 func (m *messageManager) slice(begin, end int) {
 	var header, tailer []*Message
 	for i := 0; i < begin; i++ {
-		if m.pinned[i] {
+		if m.pinned[m.messages[i]] {
 			header = append(header, m.messages[i])
 		}
 	}
 	for i := end; i < len(m.messages); i++ {
-		if m.pinned[i] {
+		if m.pinned[m.messages[i]] {
 			tailer = append(tailer, m.messages[i])
 		}
 	}
@@ -209,14 +212,14 @@ func (m *messageManager) slice(begin, end int) {
 
 func (m *messageManager) pin(indexes ...int) {
 	if m.pinned == nil {
-		m.pinned = make(map[int]bool)
+		m.pinned = make(map[*Message]bool)
 	}
 
 	for _, index := range indexes {
 		if index < 0 || index >= len(m.messages) {
 			continue
 		}
-		m.pinned[index] = true
+		m.pinned[m.messages[index]] = true
 	}
 }
 func (m *messageManager) unpin(indexes ...int) {
@@ -228,7 +231,7 @@ func (m *messageManager) unpin(indexes ...int) {
 		if index < 0 || index >= len(m.messages) {
 			continue
 		}
-		delete(m.pinned, index)
+		delete(m.pinned, m.messages[index])
 	}
 }
 

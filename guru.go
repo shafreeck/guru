@@ -152,7 +152,12 @@ func (g *Guru) ChatCommand() {
 		if p == "" {
 			g.Errorln("prompt not found:", opts.Prompt)
 		}
-		sess.Append(&Message{Role: User, Content: p}, opts.Pin)
+		pin := opts.Pin
+		// pin the prompt message in oneshot mode
+		if opts.Oneshot {
+			pin = true
+		}
+		sess.Append(&Message{Role: User, Content: p}, pin)
 	}
 
 	// read from stdin or file
