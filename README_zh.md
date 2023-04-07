@@ -114,7 +114,7 @@ Available commands:
 * `message show [id]` 显示某条消息，并使用 Markdown 渲染，默认显示最后一条消息
 * `message append` 追加一条消息，也可使用简短的别名 `:append`
 * `message pin [id]` 钉住某条消息，钉的的消息不回被消息自动收缩机制删除，也无法被 `:message delete` 命令删除。
-* `message unpin [id]` 接除消息的钉住状态
+* `message unpin [id]` 解除消息的钉住状态
 
 ### 使用 Prompt
 
