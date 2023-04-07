@@ -40,7 +40,7 @@ Guru 的含义是一个受人尊敬的导师、顾问或精神领袖，通常在
 go install github.com/shafreeck/guru@latest
 ```
 
-### 获取 OPENAI API Key
+### 获取 OpenAI API Key
 
 登陆自己的 OpenAI 账号，并生成 API Key：https://platform.openai.com/account/api-keys
 
@@ -173,7 +173,7 @@ Available commands:
 * `:session stack push` 新建会话并入栈，可使用简短命令别名 `>`
 * `:session stack pop` 当前会话出栈，可使用简短命令别名 `<`
 
-当使用 `>` 新建会话时，会自动在命令提示符追加 `>` 符号，比如 由`guru> ` 变为 `guru >>`，使用出栈命令 `<` 可取消追加的符号。
+当使用 `>` 新建会话时，会自动在命令提示符追加 `>` 符号，比如 由`guru> ` 变为 `guru >> `，使用出栈命令 `<` 可取消追加的符号。
 
 
 ### 查看或设置参数
