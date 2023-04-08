@@ -1,6 +1,6 @@
 # Guru
 
-在终端体验 ChatGPT ！
+在终端体验 ChatGPT ！[介绍文章](https://mp.weixin.qq.com/s/3dFncTQlF0QLJVhXa31oIQ)
 
 ```
 Guru 的含义是一个受人尊敬的导师、顾问或精神领袖，通常在某个领域具有专业的知
