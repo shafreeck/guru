@@ -346,6 +346,9 @@ func (g *Guru) ConfigCommand() {
 		if err != nil {
 			g.Fatalln(err)
 		}
+		if err := os.MkdirAll(path.Dir(opts.File), 0755); err != nil {
+			g.Fatalln(err)
+		}
 		if err := os.WriteFile(opts.File, data, 0644); err != nil {
 			g.Fatalln(err)
 		}
