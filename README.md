@@ -95,9 +95,11 @@ echo list files in this dir in detail | guru cheat | sh
 
 ### Message management
 
-ChatGPT does not store the context of the conversation on the server side. Its context-awareness capability is achieved by submitting each conversation record on the client side. In the definition of the ChatGPT interface, both an initiated question and an answered content are called a message. Because the total size of the message content in the ChatGPT interface is limited to 4096 tokens, continuous conversations will cause the message size to exceed the limit.
-Guru supports automatic cleaning of old messages to achieve continuous conversation with a rolling window. However, sometimes we expect more precise control over the content submitted to ChatGPT to accurately control the context. At this time, internal commands from message management can be used to manually reduce, delete, or append message records.  
-For messages that we do not want to delete or not want to be cleaned by the rolling window, we can pin messages with the `: message pin` command. The one-shot mechanism of a single-round conversation is used to fix the prompt message, which implements the function of submitting the prompt word with each conversation.
+ChatGPT does not store the context of the conversation on the server side. Its context-awareness capability is achieved by submitting all the context content from the client. As defined in the OpenAI API, both an submitted question or a replied answer is called a message. The content of a message is tokenized into tokens, and there is a limitation of the total tokens for both submitted and replied, which is 4096 at most. A long conversation would run out the tokens. 
+
+Guru supports automatic cleaning of old messages to achieve continuous conversation with a rolling window. However, sometimes we expect more precise control over the messages submitted to ChatGPT. At this time, internal commands from message management can be used to manually shrink, delete, or append messages.
+
+For messages that we do not want to delete or not want to be cleaned by the rolling window, we can pin messages with the `: message pin` command. The oneshot mode uses this method to pin the prompt message, which keeps the prompt would be submitted for each question.
 
 - `: message list` Lists all current messages, aliasing `:ls`
 - `: message delete [id...]` Delete messages, where the parameters are message IDs that can delete multiple messages at the same time
