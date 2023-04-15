@@ -38,67 +38,60 @@ https://platform.openai.com/account/api-keys
 
 ### Configure Guru
 
-
-For the convenience of using, an interactive configuration function has been added. Guru will obtain the required parameters from the configuration file and command-line parameters by default. Even if there is no configuration, you can directly specify it through the command-line parameters. Because of the confidentiality of the API Key, it is recommended that it be written to the configuration file.
+Configure guru for the first time using, run `guru config` and enter your OpenAI API Key gained from above step. A socks5 proxy is optional to use. You can by pass this step and using parameters directly for the command, but it is recommended to save your secret key into the configuration file.
 
 ![guru-config-cropped](https://user-images.githubusercontent.com/418483/230640993-2c50e9e5-f015-4520-95b6-ee3cdb92936e.gif)
 
-You can also skip the configuration and directly specify related options through command-line parameters.
-
 ## User Guide
 
-### Multi-Turn Conversation
+### Conversation Mode
 
 ```
 > guru [text]
 ```
 
-Enter multi-turn conversation mode directly by executing `guru`. `guru` is actually an alias to the `guru chat` command. The `--oneshot` parameter can enter single-turn conversation mode, and the context is automatically discarded in single-turn conversation mode. The session record is automatically stored (default is in the ~/.guru/session/ directory).
+Enter conversation mode by directly executing `guru`.`guru` is actually an alias to the `guru chat` command. Run guru with `--oneshot` flag to enter `oneshot` mode, in this mode, guru drops the context messages for each asking. The session is always automatically recorded.(default in ` ~/.guru/session/` directory)
+
 ![chat](https://user-images.githubusercontent.com/418483/230428335-5e52561c-efb8-4425-a015-2a737491f83e.gif)
 
-### Built-in Prompt Words
+### Built-in Prompts
 
-#### Use Cheatsheet
+#### Act as a Cheatsheet
 
 ```
 > guru cheat
 ```
 
-`guru cheat` is essentially an alias to the `guru chat -p Cheatsheet` command, which is used to simplify user input.
+`guru cheat` is an alias to the `guru chat -p Cheatsheet` command, which is used to simplify user input.
 
-#### Use Guru to cheat
+![guru cheat](https://user-images.githubusercontent.com/418483/230428209-0fb10754-a501-4cc1-b807-d3c6e0502c37.gif)
 
-```
-> guru cheat "list files in this dir in detail"
-```
-
-#### Use Guru in a shell
-
-```
-> echo "list files in this dir in detail" | guru cheat | sh
-```
-
-#### Use Guru with Committer
+#### Act as a Committer
 
 ```
 > git diff | guru commit
 ```
 
-### One-shot conversation
+`guru commit` is an alias to `guru chat -p Committer`.
 
-Use the `--oneshot` parameter to enter one-shot conversation mode. In this mode, the context message will be automatically discarded. However, if `--prompt, -p` specifies a prompt word, the content of the prompt word will be fixed and submitted with each conversation.
+![231173798-4d0d4f37-9343-407e-8cf5-c43f3ead52db](https://user-images.githubusercontent.com/418483/232233080-358058ee-fdaf-4825-90a1-7b62bc57fe2c.gif)
 
-> Use the `: message pin` command to fix any message
+### Oneshot Mode
+
+Use the `--oneshot` parameter to enter one-shot conversation mode. In this mode, the context messages will be automatically discarded. However, if `--prompt, -p` specifies a prompt, the content of the prompt will be pinned and submitted with each conversation.
+
+> Use the `: message pin` command to pin any message
 
 ```
 guru --oneshot
 ```
 
-### Redirect input and output
+### Redirect stdin and stdout
 
 ```
 echo list files in this dir in detail | guru cheat | sh
 ```
+![redirect](https://user-images.githubusercontent.com/418483/230641057-68721bad-1ee6-4d9b-a614-07034a504dc3.gif)
 
 ### Message management
 
