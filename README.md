@@ -103,7 +103,7 @@ For messages that we do not want to delete or not want to be cleaned by the roll
 
 - `: message list` Lists all current messages, aliasing `:ls`
 - `: message delete [id...]` Delete messages, where the parameters are message IDs that can delete multiple messages at the same time
-- `: message shrink [expr]` Shrinks messages, where `expr` is a range expression, it is the same as the expression in Go language Slice: `begin:end`. Begin or End can be omitted, for example `5:`, which means to retain all messages with an ID greater than or equal to 5.
+- `: message shrink [expr]` Shrinks messages, where `expr` is a range expression, it is the same as the expression in Golang Slice: `begin:end`. Begin or End can be omitted, for example `5:`, which means to retain all messages with an ID greater than or equal to 5.
 - `message show [id]` Displays a certain message and renders it with Markdown. The default is to display the last message.
 - `message append` Appends a message, also available with the shortcut `:append`
 - `message pin [id]` Pins a message, and the pinned message will not be automatically deleted by the message auto-shrink mechanism and cannot be deleted by the `: message delete` command.
