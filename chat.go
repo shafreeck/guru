@@ -18,6 +18,7 @@ type ChatOptions struct {
 	Executor          string `yaml:"executor"`
 	Feedback          bool   `yaml:"feedback"`
 	Verbose           bool   `yaml:"verbose"`
+	Renderer          string `yaml:"renderer"`
 	NonInteractive    bool   `yaml:"non-interactive"`
 	DisableAutoShrink bool   `yaml:"disable-auto-shrink"`
 	Text              string `yaml:"-"`
@@ -93,8 +94,8 @@ func (c *ChatCommand) ask(ctx context.Context, opts *ChatOptions) (string, error
 		c.sess.Append(choice.Message)
 	}
 
-	c.verbose("render with markdown")
-	text, err := tui.Display[tui.Model[string], string](ctx, tui.NewMarkdownModel(out.String()))
+	c.verbose("render the content")
+	text, err := tui.Display[tui.Model[string], string](ctx, tui.NewContentModel(out.String(), opts.Renderer))
 	if err != nil {
 		return "", err
 	}
@@ -134,7 +135,7 @@ retry:
 
 	// handle the stream and print the delta text, the whole
 	// content is returned when finished
-	content, err := tui.Display[tui.Model[string], string](ctx, tui.NewStreamModel(s, func(event *AnswerChunk) (string, error) {
+	content, err := tui.Display[tui.Model[string], string](ctx, tui.NewStreamModel(s, opts.Renderer, func(event *AnswerChunk) (string, error) {
 		if event.Error.Message != "" {
 			return "", fmt.Errorf("%s: %s", event.Error.Code, event.Error.Message)
 		}

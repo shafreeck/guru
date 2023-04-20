@@ -104,6 +104,7 @@ type ChatCommandOptions struct {
 	DisableAutoShrink bool          `cortana:"--disable-auto-shrink, -, false, disable auto shrink messages when tokens limit exceeded" yaml:"disable-auto-shrink,omitempty"`
 	Dir               string        `cortana:"--dir,-, ~/.guru, the guru directory" yaml:"dir,omitempty"`
 	SessionID         string        `cortana:"--session-id, -s,, the session id" yaml:"session-id,omitempty"`
+	Renderer          string        `cortana:"--renderer,, markdown, the render type, can be text, markdown, json" yaml:"renderer,omitempty"`
 	Texts             []string      `cortana:"text, -" yaml:"-"`
 }
 
@@ -209,6 +210,7 @@ func (g *Guru) ChatCommand() {
 			Verbose:           opts.Verbose,
 			Executor:          opts.Executor,
 			Feedback:          opts.Feedback,
+			Renderer:          opts.Renderer,
 			NonInteractive:    opts.NonInteractive,
 			DisableAutoShrink: opts.DisableAutoShrink,
 		}

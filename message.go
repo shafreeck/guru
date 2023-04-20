@@ -173,7 +173,7 @@ func (m *messageManager) showCommand() (_ string) {
 		}
 		out.WriteString(m.messages[index].Content + "\n\n")
 	}
-	tui.Display[tui.Model[string], string](context.Background(), tui.NewMarkdownModel(out.String()))
+	tui.Display[tui.Model[string], string](context.Background(), tui.NewContentModel(out.String(), "markdown"))
 	return
 }
 

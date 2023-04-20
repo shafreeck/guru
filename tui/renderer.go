@@ -11,13 +11,13 @@ import (
 )
 
 type Renderer interface {
-	Render([]byte) ([]byte, error)
+	Render(string) (string, error)
 }
 
 type JSONRenderer struct {
 }
 
-func (r JSONRenderer) Render(text string) (string, error) {
+func (r *JSONRenderer) Render(text string) (string, error) {
 	out := bytes.NewBuffer(nil)
 	if err := quick.Highlight(out, string(text), "json", "terminal256", "monokai"); err != nil {
 		return "", err
@@ -29,8 +29,8 @@ type TextRenderer struct {
 	Style lipgloss.Style
 }
 
-func (r *TextRenderer) Render(text []byte) ([]byte, error) {
-	return []byte(r.Style.Render(string(text))), nil
+func (r *TextRenderer) Render(text string) (string, error) {
+	return r.Style.Render(text), nil
 }
 
 type MarkdownRender struct {
@@ -51,4 +51,19 @@ func (r MarkdownRender) Render(text string) (string, error) {
 	} else {
 		return text, nil
 	}
+}
+
+func NewRenderer(name string) Renderer {
+	var renderer Renderer
+	switch name {
+	case "text":
+		renderer = &TextRenderer{}
+	case "markdown":
+		renderer = &MarkdownRender{}
+	case "json":
+		renderer = &JSONRenderer{}
+	default:
+		renderer = &MarkdownRender{}
+	}
+	return renderer
 }

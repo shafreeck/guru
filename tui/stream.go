@@ -20,16 +20,17 @@ type StreamModel[E any, S chan E] struct {
 	out      *bytes.Buffer
 	text     string // the text to draw by view
 	stream   S
-	renderer MarkdownRender
+	renderer Renderer
 	onEvent  func(event E) (string, error)
 	height   int // the window height
 }
 
-func NewStreamModel[E any, S chan E](stream S, onEvent func(event E) (string, error)) *StreamModel[E, S] {
+func NewStreamModel[E any, S chan E](stream S, rendererName string, onEvent func(event E) (string, error)) *StreamModel[E, S] {
 	return &StreamModel[E, S]{
-		out:     bytes.NewBuffer(nil),
-		stream:  stream,
-		onEvent: onEvent,
+		out:      bytes.NewBuffer(nil),
+		stream:   stream,
+		renderer: NewRenderer(rendererName),
+		onEvent:  onEvent,
 		Model: spinner.Model{
 			Spinner: spinner.Points,
 			Style:   lipgloss.NewStyle().Foreground(lipgloss.Color("205")),

@@ -283,7 +283,7 @@ func (ar *AwesomeRepos) listCommand() (_ string) {
 			return
 		}
 
-		text, err := tui.JSONRenderer{}.Render(string(data))
+		text, err := (&tui.JSONRenderer{}).Render(string(data))
 		if err != nil {
 			ar.ap.out.Errorln(err)
 			return
