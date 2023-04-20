@@ -1,5 +1,7 @@
 # Guru
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/shafreeck/guru)](https://goreportcard.com/report/github.com/shafreeck/guru)
+
 Enjoy ChatGPT in your terminal. [中文](./README_zh.md)
 
 ```
