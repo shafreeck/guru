@@ -209,7 +209,6 @@ func (g *Guru) ChatCommand() {
 			Verbose:           opts.Verbose,
 			Executor:          opts.Executor,
 			Feedback:          opts.Feedback,
-			OneshotPrompt:     opts.Prompt,
 			NonInteractive:    opts.NonInteractive,
 			DisableAutoShrink: opts.DisableAutoShrink,
 		}
