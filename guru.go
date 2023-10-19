@@ -522,10 +522,13 @@ func (g *Guru) getHTTPClient(opts *ChatCommandOptions) *http.Client {
 		}
 
 		cli.Transport = &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return dailer.Dial(network, addr)
 			},
+		}
+	} else {
+		cli.Transport = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
 		}
 	}
 	return cli
