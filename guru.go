@@ -87,7 +87,8 @@ func New(opts ...GuruOption) *Guru {
 
 type ChatCommandOptions struct {
 	ChatGPTOptions    `yaml:"chatgpt,omitempty"`
-	APIKey            string        `cortana:"--openai-api-key, -, -, set your openai api key" yaml:"openai-api-key,omitempty"`
+	APIKey            string        `cortana:"--api-key, -, -, set your api key" yaml:"api-key,omitempty"`
+	BaseURL           string        `cortana:"--base-url, -, https://api.openai.com/v1, The base URL for the compitable ChatGPT API." yaml:"base-url,omitempty"`
 	Socks5            string        `cortana:"--socks5, -, , set the socks5 proxy" yaml:"socks5,omitempty"`
 	Timeout           time.Duration `cortana:"--timeout, -, 180s, the timeout duration for a request"  yaml:"timeout,omitempty"`
 	System            string        `cortana:"--system, -,, the optional system prompt for initializing the chatgpt" yaml:"system,omitempty"`
@@ -331,9 +332,9 @@ func (g *Guru) ConfigCommand() {
 	// interactive to create the config
 	if (opts.Init || os.IsNotExist(err)) &&
 		opts.Key == "" && opts.Value == "" {
-		// ask for openai-api-key and socks5
+		// ask for api-key and socks5
 		vals, err := tui.Display[tui.Model[[]string], []string](context.Background(),
-			tui.NewConfigInputModel("openai-api-key (required)", "socks5 (if have)"))
+			tui.NewConfigInputModel("api-key (required)", "socks5 (if have)"))
 		if err != nil {
 			g.Fatalln(err)
 		}

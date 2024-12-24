@@ -112,15 +112,16 @@ type ChatGPTOptions struct {
 	User             string  `yaml:"user,omitempty" json:"user,omitempty" cortana:"--chatgpt.user, -, , A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse."`
 }
 
-const ChatGPTAPIURL = "https://api.openai.com/v1/chat/completions"
+const ChatGPTAPIURL = "https://api.openai.com/v1"
 
 type ChatGPTClient struct {
 	opts *ChatGPTOptions
 	cli  *chat.Client[*Question, *Answer, *AnswerChunk]
 }
 
-func NewChatGPTClient(cli *http.Client, apikey string, opts *ChatGPTOptions) *ChatGPTClient {
-	chatCli := chat.New[*Question, *Answer, *AnswerChunk](cli, ChatGPTAPIURL, apikey)
+func NewChatGPTClient(cli *http.Client, baseURL, apikey string, opts *ChatGPTOptions) *ChatGPTClient {
+	url := baseURL + "/chat/completions"
+	chatCli := chat.New[*Question, *Answer, *AnswerChunk](cli, url, apikey)
 	return &ChatGPTClient{opts: opts, cli: chatCli}
 }
 
