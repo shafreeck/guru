@@ -32,7 +32,7 @@ type ChatCommand struct {
 }
 
 func NewChatCommand(sess *Session, ap *AwesomePrompts, httpCli *http.Client, opts *ChatCommandOptions) *ChatCommand {
-	c := NewChatGPTClient(httpCli, opts.APIKey, &opts.ChatGPTOptions)
+	c := NewChatGPTClient(httpCli, opts.BaseURL, opts.APIKey, &opts.ChatGPTOptions)
 	return &ChatCommand{c: c, sess: sess, ap: ap, isVerbose: opts.Verbose}
 }
 

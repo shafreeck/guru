@@ -232,7 +232,7 @@ guru > :act as Linux Terminal
 ```
 dir                           /Users/shafreeck/.guru
 filename
-openai-api-key                sk-************************************************
+api-key                sk-************************************************
 pin                           false
 prompt
 session-id                    chat-1680879639912-1ec4e509-af5b-4abb-9f4b-bebde2276d96
